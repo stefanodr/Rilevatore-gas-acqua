@@ -1,0 +1,62 @@
+# packages/consumo_acqua_1_0.yaml by Stefano Di Ricco
+
+sensor:
+  - platform: template
+    sensors:
+      water_consumption:
+        friendly_name: Consumo di Acqua
+        unique_id: water_consumption_sensor_template
+        device_class: water
+        unit_of_measurement: m³
+        value_template: "{{ states('input_text.water_reading_value') | float }}"
+
+input_datetime:
+  water_reading_date:
+    name: Data della rilevazione
+    has_date: true
+    has_time: false
+
+  water_reading_time:
+    name: Ora della rilevazione
+    has_date: false
+    has_time: true
+
+input_text:
+  water_reading_value:
+    name: Valore rilevato
+    icon: mdi:water
+
+utility_meter:
+  water_daily:
+    source: sensor.water_consumption
+    unique_id: water_daily
+    cycle: daily
+
+  water_monthly:
+    source: sensor.water_consumption
+    unique_id: water_monthly
+    cycle: monthly
+
+  water_annual:
+    source: sensor.water_consumption
+    unique_id: water_yearly
+    cycle: yearly
+
+energy:
+  entities:
+    - sensor.water_consumption
+
+automation:
+  - alias: "Registra consumo di acqua"
+    trigger:
+      platform: state
+      entity_id: input_text.water_reading_value
+    action:
+      - service: input_datetime.set_datetime
+        data_template:
+          entity_id: input_datetime.water_reading_date
+          date: "{{ now().strftime('%Y-%m-%d') }}"
+      - service: input_datetime.set_datetime
+        data_template:
+          entity_id: input_datetime.water_reading_time
+          time: "{{ now().strftime('%H:%M:%S') }}"
