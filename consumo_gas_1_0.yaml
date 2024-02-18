@@ -1,0 +1,62 @@
+# packages/consumo_gas_1_0.yaml by Stefano Di Ricco
+
+sensor:
+  - platform: template
+    sensors:
+      gas_consumption:
+        friendly_name: Consumo di Gas
+        unique_id: gas_consumption_sensor_template
+        device_class: gas
+        unit_of_measurement: m³
+        value_template: "{{ states('input_text.gas_reading_value') |float }}"
+
+input_datetime:
+  gas_reading_date:
+    name: Data della rilevazione
+    has_date: true
+    has_time: false
+
+  gas_reading_time:
+    name: Ora della rilevazione
+    has_date: false
+    has_time: true
+
+input_text:
+  gas_reading_value:
+    name: Valore rilevato
+    icon: mdi:gas-cylinder
+
+utility_meter:
+  gas_daily:
+    source: sensor.gas_consumption
+    unique_id: gas_daily
+    cycle: daily
+
+  gas_monthly:
+    source: sensor.gas_consumption
+    unique_id: gas_montly
+    cycle: monthly
+
+  gas_annual:
+    source: sensor.gas_consumption
+    unique_id: gas_yearly
+    cycle: yearly
+
+energy:
+  entities:
+    - sensor.gas_consumption
+
+automation:
+  - alias: "Registra consumo di gas"
+    trigger:
+      platform: state
+      entity_id: input_text.gas_reading_value
+    action:
+      - service: input_datetime.set_datetime
+        data_template:
+          entity_id: input_datetime.gas_reading_date
+          date: "{{ now().strftime('%Y-%m-%d') }}"
+      - service: input_datetime.set_datetime
+        data_template:
+          entity_id: input_datetime.gas_reading_time
+          time: "{{ now().strftime('%H:%M:%S') }}"

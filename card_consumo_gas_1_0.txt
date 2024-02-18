@@ -1,0 +1,23 @@
+type: vertical-stack
+cards:
+  - type: entities
+    entities:
+      - sensor.gas_consumption
+      - input_datetime.gas_reading_date
+      - input_datetime.gas_reading_time
+      - input_text.gas_reading_value
+    icon: mdi:gas-burner
+    title: Registrazione Consumo Gas
+  - type: custom:button-card
+    layout: icon_state
+    show_name: false
+    show_icon: true
+    show_state: false
+    tap_action:
+      action: call-service
+      service: automation.trigger
+      service_data:
+        entity_id: automation.registra_consumo_di_gas
+    entity: sensor.gas_consumption
+    icon: mdi:content-save-edit-outline
+    name: Inserisci Dato
