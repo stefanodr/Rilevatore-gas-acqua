@@ -1,5 +1,5 @@
 # Rilevatore Consumo GAS/ACQUA manuale:
-Con questo package può essere creato un sensor template per l'inserimento del consumo del gas e dell'acqua rilevabile dalla plancia energia, con abbinati degli utility meter per i conteggi, per chi come me ha l'esigenza di monitorare i dati di consumo, ma non può o non vuole istallare rilevatori vicino ai contatori. 
+Con questo package può essere creato un sensor template per l'inserimento manuale del consumo del gas e dell'acqua rilevabile dalla plancia energia, con abbinati degli utility meter per i conteggi, per chi come me ha l'esigenza di monitorare i dati di consumo, ma non può o non vuole istallare rilevatori vicino ai contatori. 
 Si compone di:
 1. Package: "consumo_gas_1_0.yaml", "consumo_acqua_1_0.yaml" (deve essere abilitata la cartella package se non già fatto);
 2. Card: "card_consumo_gas_1_0.txt", "card_consumo_acqua_1_0.txt" da inserire in plancia per rilevamento manuale del dato;
