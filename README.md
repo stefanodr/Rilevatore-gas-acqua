@@ -1,66 +1,6 @@
 # Rilevatore Consumo GAS / ACQUA manuale · Manual GAS / WATER consumption meter (v1.1)
 
-🇬🇧 [English](#english) · 🇮🇹 [Italiano](#italiano)
-
----
-
-<a id="english"></a>
-## 🇬🇧 English
-
-Home Assistant package to enter your **gas and water meter readings by hand** and see them in the **Energy dashboard**, with daily, monthly and yearly consumption. Made for people who cannot (or do not want to) install sensors next to their meters.
-
-Requires Home Assistant **2025.10 or later**.
-
-### What is included
-
-| File | Purpose |
-|------|---------|
-| `packages/consumo_gas.yaml` | Helpers, sensor, utility meters and automation for gas |
-| `packages/consumo_acqua.yaml` | Same for water |
-| `cards/vista_consumi_gas.yaml` | Full dashboard view for gas |
-| `cards/vista_consumi_acqua.yaml` | Full dashboard view for water |
-| `rse.png`, `contatoreH2o.png` | Optional pictures for the view (copy them to `/config/www/foto-pkg/`) |
-
-You can install gas only, water only, or both.
-
-### Installation
-
-1. Enable packages in `configuration.yaml` (if you have not already):
-
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
-
-2. Copy `consumo_gas.yaml` and/or `consumo_acqua.yaml` to `/config/packages/`.
-3. *Developer tools → YAML → Check configuration*, then restart Home Assistant.
-4. Type your current meter reading in the **"Valore rilevato"** field (dot or comma, e.g. `1234.567`).
-5. Add the view: *Edit dashboard → three dots → Raw configuration editor* and paste `cards/vista_consumi_*.yaml` inside `views:` (or copy single cards). The 24-hour graph needs **mini-graph-card** from HACS (optional: use a `history-graph` card instead).
-6. *Settings → Dashboards → Energy*: add **Gas** (`sensor.gas_consumption`) and/or **Water** (`sensor.water_consumption`) as sources.
-
-### How to use
-
-Whenever you read your meter, type the value in **"Valore rilevato"**. Date and time are recorded automatically.
-
-The value must **always increase**: a lower value is read by Home Assistant as a meter replacement (new cycle). If you make a mistake, fix it right away.
-
-### Entities
-
-| Entity | Description |
-|--------|-------------|
-| `input_text.gas_reading_value` / `input_text.water_reading_value` | Reading entry field |
-| `sensor.gas_consumption` / `sensor.water_consumption` | Meter value (used by the Energy dashboard) |
-| `sensor.gas_daily`, `sensor.gas_monthly`, `sensor.gas_annual` | Gas consumption per day / month / year |
-| `sensor.water_daily`, `sensor.water_monthly`, `sensor.water_annual` | Water consumption per day / month / year |
-
-### Troubleshooting
-
-- **The sensor is "unavailable"**: enter a reading greater than 0.
-- **The field rejects my value**: only numbers with dot or comma are accepted, no units.
-- **I cannot add the sensor to the Energy dashboard**: check that it is available and has `state_class: total_increasing`, a gas/water `device_class` and unit `m³`.
-- **Energy dashboard does not show my reading yet**: it reads hourly statistics, so a reading appears once its hour has been compiled (a few minutes after a restart).
-
-What changed in this version: [RELEASE_NOTES_v1.1.md](RELEASE_NOTES_v1.1.md).
+🇮🇹 [Italiano](#italiano) · 🇬🇧 [English](#english)
 
 ---
 
@@ -121,3 +61,63 @@ Il valore deve **crescere sempre**: un valore più basso del precedente viene in
 - **La plancia Energia non mostra ancora la lettura**: legge le statistiche orarie, quindi la lettura compare quando quell'ora è stata calcolata (pochi minuti dopo un riavvio).
 
 Cosa cambia in questa versione: [RELEASE_NOTES_v1.1.md](RELEASE_NOTES_v1.1.md).
+
+---
+
+<a id="english"></a>
+## 🇬🇧 English
+
+Home Assistant package to enter your **gas and water meter readings by hand** and see them in the **Energy dashboard**, with daily, monthly and yearly consumption. Made for people who cannot (or do not want to) install sensors next to their meters.
+
+Requires Home Assistant **2025.10 or later**.
+
+### What is included
+
+| File | Purpose |
+|------|---------|
+| `packages/consumo_gas.yaml` | Helpers, sensor, utility meters and automation for gas |
+| `packages/consumo_acqua.yaml` | Same for water |
+| `cards/vista_consumi_gas.yaml` | Full dashboard view for gas |
+| `cards/vista_consumi_acqua.yaml` | Full dashboard view for water |
+| `rse.png`, `contatoreH2o.png` | Optional pictures for the view (copy them to `/config/www/foto-pkg/`) |
+
+You can install gas only, water only, or both.
+
+### Installation
+
+1. Enable packages in `configuration.yaml` (if you have not already):
+
+   ```yaml
+   homeassistant:
+     packages: !include_dir_named packages
+   ```
+
+2. Copy `consumo_gas.yaml` and/or `consumo_acqua.yaml` to `/config/packages/`.
+3. *Developer tools → YAML → Check configuration*, then restart Home Assistant.
+4. Type your current meter reading in the **"Valore rilevato"** field (dot or comma, e.g. `1234.567`).
+5. Add the view: *Edit dashboard → three dots → Raw configuration editor* and paste `cards/vista_consumi_*.yaml` inside `views:` (or copy single cards). The 24-hour graph needs **mini-graph-card** from HACS (optional: use a `history-graph` card instead).
+6. *Settings → Dashboards → Energy*: add **Gas** (`sensor.gas_consumption`) and/or **Water** (`sensor.water_consumption`) as sources.
+
+### How to use
+
+Whenever you read your meter, type the value in **"Valore rilevato"**. Date and time are recorded automatically.
+
+The value must **always increase**: a lower value is read by Home Assistant as a meter replacement (new cycle). If you make a mistake, fix it right away.
+
+### Entities
+
+| Entity | Description |
+|--------|-------------|
+| `input_text.gas_reading_value` / `input_text.water_reading_value` | Reading entry field |
+| `sensor.gas_consumption` / `sensor.water_consumption` | Meter value (used by the Energy dashboard) |
+| `sensor.gas_daily`, `sensor.gas_monthly`, `sensor.gas_annual` | Gas consumption per day / month / year |
+| `sensor.water_daily`, `sensor.water_monthly`, `sensor.water_annual` | Water consumption per day / month / year |
+
+### Troubleshooting
+
+- **The sensor is "unavailable"**: enter a reading greater than 0.
+- **The field rejects my value**: only numbers with dot or comma are accepted, no units.
+- **I cannot add the sensor to the Energy dashboard**: check that it is available and has `state_class: total_increasing`, a gas/water `device_class` and unit `m³`.
+- **Energy dashboard does not show my reading yet**: it reads hourly statistics, so a reading appears once its hour has been compiled (a few minutes after a restart).
+
+What changed in this version: [RELEASE_NOTES_v1.1.md](RELEASE_NOTES_v1.1.md).
