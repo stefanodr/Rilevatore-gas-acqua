@@ -1,0 +1,70 @@
+# Vista dashboard - Consumi Gas
+# Come usarla: Modifica dashboard -> menu (tre puntini) -> Editor di configurazione grezzo
+# e incolla questa vista dentro "views:"; oppure copia le singole card.
+#
+# Immagine facoltativa: copia rse.png in /config/www/foto-pkg/ (si vede come /local/foto-pkg/rse.png).
+# Richiede da HACS (frontend): mini-graph-card. Se non la vuoi, sostituisci la card
+# "custom:mini-graph-card" con una card "history-graph".
+# Se hai rinominato il sensore mensile (sensor.gas_monthly), cambia il nome nelle due card che lo usano.
+title: Consumi Gas
+path: consumi-gas
+type: masonry
+badges: []
+cards:
+  - type: picture
+    image: /local/foto-pkg/rse.png
+  - type: entities
+    title: Registrazione Consumo Gas
+    icon: mdi:gas-burner
+    show_header_toggle: false
+    entities:
+      - entity: input_text.gas_reading_value
+        name: Lettura contatore (m³)
+      - entity: input_datetime.gas_reading_date
+        name: Data ultima lettura
+      - entity: input_datetime.gas_reading_time
+        name: Ora ultima lettura
+      - entity: sensor.gas_consumption
+        name: Consumo di Gas
+  - type: entities
+    entities:
+      - entity: sensor.gas_daily
+        name: Consumo giornaliero
+      - entity: sensor.gas_monthly
+        name: Consumo mensile
+      - entity: sensor.gas_annual
+        name: Consumo annuale
+  - type: custom:mini-graph-card
+    name: Consumo Gas contatore
+    icon: mdi:gas-burner
+    entities:
+      - entity: sensor.gas_consumption
+    line_color: '#3498db'
+    points_per_hour: 1
+    hours_to_show: 24
+    font_size: 75
+    animate: true
+  - type: statistics-graph
+    title: Consumo mensile ultimi 6 mesi
+    chart_type: bar
+    period: month
+    days_to_show: 180
+    stat_types:
+      - change
+    entities:
+      - sensor.gas_monthly
+  - type: statistics-graph
+    title: Consumo settimanale ultime 8 settimane
+    chart_type: bar
+    period: week
+    days_to_show: 60
+    stat_types:
+      - change
+    entities:
+      - sensor.gas_consumption
+  - type: logbook
+    title: Storico rilevamenti
+    hours_to_show: 336
+    entities:
+      - input_text.gas_reading_value
+  - type: energy-gas-graph

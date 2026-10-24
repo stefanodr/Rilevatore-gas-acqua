@@ -1,0 +1,69 @@
+# Vista dashboard - Consumi Acqua
+# Come usarla: Modifica dashboard -> menu (tre puntini) -> Editor di configurazione grezzo
+# e incolla questa vista dentro "views:"; oppure copia le singole card.
+#
+# Immagine facoltativa: copia contatoreH2o.png in /config/www/foto-pkg/ (si vede come /local/foto-pkg/contatoreH2o.png).
+# Richiede da HACS (frontend): mini-graph-card. Se non la vuoi, sostituisci la card
+# "custom:mini-graph-card" con una card "history-graph".
+title: Consumi Acqua
+path: consumo-acqua
+type: masonry
+badges: []
+cards:
+  - type: picture
+    image: /local/foto-pkg/contatoreH2o.png
+  - type: entities
+    title: Registrazione Consumo Acqua
+    icon: mdi:water
+    show_header_toggle: false
+    entities:
+      - entity: input_text.water_reading_value
+        name: Lettura contatore (m³)
+      - entity: input_datetime.water_reading_date
+        name: Data ultima lettura
+      - entity: input_datetime.water_reading_time
+        name: Ora ultima lettura
+      - entity: sensor.water_consumption
+        name: Consumo di Acqua
+  - type: entities
+    entities:
+      - entity: sensor.water_daily
+        name: Consumo giornaliero
+      - entity: sensor.water_monthly
+        name: Consumo mensile
+      - entity: sensor.water_annual
+        name: Consumo annuale
+  - type: custom:mini-graph-card
+    name: Consumo Acqua contatore
+    icon: mdi:water
+    entities:
+      - entity: sensor.water_consumption
+    line_color: '#3498db'
+    points_per_hour: 1
+    hours_to_show: 24
+    font_size: 75
+    animate: true
+  - type: statistics-graph
+    title: Consumo mensile ultimi 6 mesi
+    chart_type: bar
+    period: month
+    days_to_show: 180
+    stat_types:
+      - change
+    entities:
+      - sensor.water_monthly
+  - type: statistics-graph
+    title: Consumo settimanale ultime 8 settimane
+    chart_type: bar
+    period: week
+    days_to_show: 60
+    stat_types:
+      - change
+    entities:
+      - sensor.water_consumption
+  - type: logbook
+    title: Storico rilevamenti
+    hours_to_show: 336
+    entities:
+      - input_text.water_reading_value
+  - type: energy-water-graph

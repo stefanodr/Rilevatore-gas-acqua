@@ -1,0 +1,84 @@
+# packages/consumo_acqua.yaml - Rilevatore consumo ACQUA manuale v1.1
+# Autore: Stefano Di Ricco
+# Richiede Home Assistant 2025.10 o successivo.
+#
+# Scrivi la lettura del contatore in "Valore rilevato": il sensore la espone
+# alla plancia Energia e gli utility meter calcolano i consumi giornalieri,
+# mensili e annuali.
+
+input_text:
+  water_reading_value:
+    name: Valore rilevato
+    icon: mdi:water
+    mode: text
+    max: 20
+    # Accetta solo numeri, con punto o virgola (es. 123.456 oppure 123,456)
+    pattern: '^[0-9]+([.,][0-9]+)?$'
+
+input_datetime:
+  water_reading_date:
+    name: Data della rilevazione
+    has_date: true
+    has_time: false
+  water_reading_time:
+    name: Ora della rilevazione
+    has_date: false
+    has_time: true
+
+template:
+  - sensor:
+      - name: Consumo di Acqua
+        unique_id: water_consumption_sensor_template
+        default_entity_id: sensor.water_consumption
+        device_class: water
+        state_class: total_increasing
+        unit_of_measurement: m³
+        state: "{{ states('input_text.water_reading_value') | replace(',', '.') | float(0) }}"
+        # Non disponibile finche' non c'e' una lettura valida (> 0): uno stato
+        # non disponibile viene ignorato dalle statistiche, mentre un 0 verrebbe
+        # letto come nuovo ciclo del contatore e falserebbe i consumi.
+        availability: "{{ states('input_text.water_reading_value') | replace(',', '.') | float(0) > 0 }}"
+        attributes:
+          ultima_lettura: >
+            {{ states('input_datetime.water_reading_date') }}
+            {{ states('input_datetime.water_reading_time') }}
+
+utility_meter:
+  water_daily:
+    source: sensor.water_consumption
+    unique_id: water_daily
+    cycle: daily
+  water_monthly:
+    source: sensor.water_consumption
+    unique_id: water_monthly
+    cycle: monthly
+  water_annual:
+    source: sensor.water_consumption
+    unique_id: water_yearly
+    cycle: yearly
+
+automation:
+  - id: registra_consumo_di_acqua
+    alias: "Registra consumo di acqua"
+    description: Salva data e ora ogni volta che viene inserita una nuova lettura.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: input_text.water_reading_value
+        not_from:
+          - unknown
+          - unavailable
+        not_to:
+          - unknown
+          - unavailable
+    actions:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.water_reading_date
+        data:
+          date: "{{ now().strftime('%Y-%m-%d') }}"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.water_reading_time
+        data:
+          time: "{{ now().strftime('%H:%M:%S') }}"
