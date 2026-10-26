@@ -23,6 +23,8 @@ const TEXTS = {
     forceConfirm: "Confermo comunque",
     invalid: "Inserisci un numero intero.",
     unavailable: "Nessuna lettura disponibile",
+    notFound: "Entità non trovata:",
+    wrongEntity: "Questa non è la \"Lettura contatore\" dell'integrazione (manca entry_id). Usa il sensore con gli attributi entry_id e meter_type:",
   },
   en: {
     reading: "Current reading",
@@ -43,6 +45,8 @@ const TEXTS = {
     forceConfirm: "Confirm anyway",
     invalid: "Enter a whole number.",
     unavailable: "No reading available",
+    notFound: "Entity not found:",
+    wrongEntity: "This is not the integration's \"Meter reading\" sensor (entry_id missing). Use the sensor that has the entry_id and meter_type attributes:",
   },
 };
 
@@ -270,7 +274,10 @@ class RilevatoreConsumiCard extends HTMLElement {
     const state = this._hass.states[this._config.entity];
     const entryId = state && state.attributes.entry_id;
     if (!entryId) {
-      this._setMessage("entry_id not found", "error");
+      this._setMessage(
+        state ? `${this._t.wrongEntity} ${this._config.entity}` : `${this._t.notFound} ${this._config.entity}`,
+        "error"
+      );
       return;
     }
     this._busy = true;
