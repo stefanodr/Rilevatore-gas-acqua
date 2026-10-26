@@ -1,0 +1,123 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aggiungi un contatore",
+        "description": "Aggiungi un contatore del gas o dell'acqua. Inserisci la lettura attuale (metri cubi interi), oppure scegli un sensore esistente per importarne il valore e riutilizzarne il nome: così lo storico della plancia Energia continua senza interruzioni.",
+        "data": {
+          "name": "Nome",
+          "meter_type": "Tipo di contatore",
+          "initial_reading": "Lettura attuale (m³)",
+          "existing_entity": "Sensore esistente da sostituire (facoltativo)"
+        },
+        "data_description": {
+          "initial_reading": "Solo la parte intera, senza decimali. Lascia vuoto per importarla dal sensore esistente.",
+          "existing_entity": "Per esempio sensor.gas_consumption del vecchio package. Il valore viene importato e il nome riutilizzato quando il vecchio sensore non c'è più."
+        }
+      }
+    },
+    "error": {
+      "name_required": "Inserisci un nome.",
+      "reading_required": "Inserisci la lettura attuale, oppure scegli un sensore esistente con un valore numerico valido."
+    },
+    "abort": {
+      "already_configured": "Esiste già un contatore con questo tipo e questo nome."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni del contatore",
+        "data": {
+          "ai_task_entity": "Entità AI Task per la lettura da foto",
+          "max_jump": "Aumento massimo accettato (m³)"
+        },
+        "data_description": {
+          "ai_task_entity": "Serve a leggere il contatore da una foto. Lascia vuoto per usare l'entità AI Task predefinita.",
+          "max_jump": "Una nuova lettura più alta dell'ultima di oltre questo valore richiede una conferma esplicita."
+        }
+      }
+    }
+  },
+  "selector": {
+    "meter_type": {
+      "options": {
+        "gas": "Gas",
+        "water": "Acqua"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total": { "name": "Lettura contatore" },
+      "consumption_day": { "name": "Consumo oggi" },
+      "consumption_month": { "name": "Consumo del mese" },
+      "consumption_year": { "name": "Consumo dell'anno" }
+    },
+    "number": {
+      "new_reading": { "name": "Nuova lettura" }
+    },
+    "image": {
+      "last_photo": { "name": "Ultima foto" }
+    }
+  },
+  "services": {
+    "set_reading": {
+      "name": "Imposta lettura",
+      "description": "Registra una nuova lettura del contatore in metri cubi interi. Non può essere inferiore all'attuale, salvo sostituzione del contatore.",
+      "fields": {
+        "reading": {
+          "name": "Lettura",
+          "description": "Lettura del contatore in m³, solo parte intera."
+        },
+        "force": {
+          "name": "Conferma aumento elevato",
+          "description": "Accetta un aumento superiore al massimo impostato."
+        },
+        "replace_meter": {
+          "name": "Contatore sostituito",
+          "description": "Accetta una lettura più bassa perché il contatore è stato sostituito. I consumi già maturati nei periodi in corso restano."
+        }
+      }
+    },
+    "read_from_photo": {
+      "name": "Leggi da foto",
+      "description": "Legge la parte intera della lettura da un'immagine tramite un'entità AI Task. Restituisce solo una proposta, non la salva.",
+      "fields": {
+        "media": {
+          "name": "Immagine",
+          "description": "Immagine del contatore (per esempio una telecamera o una sorgente multimediale)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_reading": {
+      "message": "La lettura {new} non è valida."
+    },
+    "reading_lower": {
+      "message": "La nuova lettura {new} è inferiore a quella attuale ({current}). Se il contatore è stato sostituito, usa l'opzione di sostituzione."
+    },
+    "reading_jump": {
+      "message": "La nuova lettura {new} supera di oltre {max} m³ quella attuale ({current}). Confermala esplicitamente se è corretta."
+    },
+    "photo_unavailable": {
+      "message": "L'entità della foto non è ancora disponibile."
+    },
+    "ai_task_missing": {
+      "message": "L'integrazione AI Task non è disponibile. Aggiungi prima un provider AI (per esempio Google Gemini o Ollama)."
+    },
+    "ai_failed": {
+      "message": "Impossibile leggere la foto: {error}"
+    },
+    "media_required": {
+      "message": "Seleziona un'immagine."
+    }
+  },
+  "issues": {
+    "entity_id_busy": {
+      "title": "L'ID entità {entity_id} è ancora in uso",
+      "description": "Il contatore \"{name}\" non ha potuto riutilizzare {entity_id} perché un'altra entità attiva lo usa. Rimuovi il vecchio package o la vecchia entità, poi ricarica questa integrazione."
+    }
+  }
+}

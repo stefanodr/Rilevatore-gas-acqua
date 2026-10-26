@@ -1,4 +1,4 @@
-# Rilevatore Consumo GAS / ACQUA manuale · Manual GAS / WATER consumption meter (v1.1)
+# Rilevatore consumi gas / acqua · Gas / water meter reader (v2.0)
 
 🇮🇹 [Italiano](#italiano) · 🇬🇧 [English](#english)
 
@@ -7,117 +7,107 @@
 <a id="italiano"></a>
 ## 🇮🇹 Italiano
 
-Package per Home Assistant che permette di inserire **a mano** la lettura del contatore del gas e dell'acqua e di vederla nella **plancia Energia**, con consumi giornalieri, mensili e annuali. Pensato per chi non può o non vuole installare sensori vicino ai contatori.
+Integrazione per Home Assistant per registrare la lettura del **contatore del gas** e dell'**acqua** (m³ interi), vederla nella **plancia Energia** e calcolare i consumi di oggi, del mese e dell'anno. Pensata per chi non può installare sensori vicino ai contatori: la lettura si inserisce **a mano** oppure **da foto**.
 
 Richiede Home Assistant **2025.10 o successivo**.
 
-### Contenuto
-
-| File | A cosa serve |
-|------|--------------|
-| `packages/consumo_gas.yaml` | Helper, sensore, utility meter e automazione per il gas |
-| `packages/consumo_acqua.yaml` | Idem per l'acqua |
-| `cards/vista_consumi_gas.yaml` | Vista dashboard completa per il gas |
-| `cards/vista_consumi_acqua.yaml` | Vista dashboard completa per l'acqua |
-| `rse.png`, `contatoreH2o.png` | Immagini facoltative per la vista (da copiare in `/config/www/foto-pkg/`) |
-
-Puoi installare solo il gas, solo l'acqua, oppure entrambi.
-
 ### Installazione
 
-1. In `configuration.yaml` abilita i package (se non l'hai già fatto):
+**HACS**: Integrazioni → menu ⋮ → *Repository personalizzati* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (categoria *Integrazione*) → installa → riavvia.
+**Manuale**: copia `custom_components/rilevatore_consumi` nella cartella `custom_components` di HA e riavvia.
 
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
+### Configurazione
 
-2. Copia `consumo_gas.yaml` e/o `consumo_acqua.yaml` in `/config/packages/`.
-3. *Strumenti per sviluppatori → YAML → Controlla configurazione*, poi riavvia Home Assistant.
-4. Scrivi la lettura attuale del contatore nel campo **"Valore rilevato"** (punto o virgola, es. `1234.567`).
-5. Aggiungi la vista: *Modifica dashboard → tre puntini → Editor di configurazione grezzo* e incolla `cards/vista_consumi_*.yaml` dentro `views:` (oppure copia le singole card). Per il grafico a 24 ore serve **mini-graph-card** da HACS (facoltativa: in alternativa usa una card `history-graph`).
-6. *Impostazioni → Dashboard → Energia*: aggiungi la fonte **Gas** (`sensor.gas_consumption`) e/o **Acqua** (`sensor.water_consumption`).
+*Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Rilevatore consumi.* Aggiungi un contatore per il gas e uno per l'acqua, indicando nome, tipo e lettura attuale (solo la parte intera).
 
-### Uso
+Per ogni contatore ottieni:
+- **Lettura contatore** (da usare nella plancia Energia come fonte gas/acqua);
+- **Consumo oggi / mese / anno**;
+- **Nuova lettura** (campo numerico) e **Ultima foto** (solo in memoria, mai salvata su disco).
 
-Quando leggi il contatore, scrivi il valore in **"Valore rilevato"**. Data e ora si aggiornano da sole.
+### Inserire la lettura
 
-Il valore deve **crescere sempre**: un valore più basso del precedente viene interpretato da Home Assistant come sostituzione del contatore (nuovo ciclo). Se sbagli un inserimento, correggilo subito.
+- **A mano**: card, entità *Nuova lettura* o servizio `rilevatore_consumi.set_reading`.
+- **Da foto**: con la card tocca 📷, scatta, controlla il valore proposto e conferma. Richiede un'entità **AI Task** (es. Google Gemini, oppure Ollama in locale se non vuoi inviare foto a servizi esterni). Nelle opzioni dell'integrazione puoi scegliere quale usare. Il valore è sempre solo un suggerimento: **non viene salvato senza la tua conferma**.
 
-### Entità
+Controlli: una lettura più bassa viene rifiutata (se hai sostituito il contatore, conferma "contatore sostituito"); un aumento oltre la soglia (300 m³ gas, 100 m³ acqua, modificabile) va confermato.
 
-| Entità | Descrizione |
-|--------|-------------|
-| `input_text.gas_reading_value` / `input_text.water_reading_value` | Campo di inserimento della lettura |
-| `sensor.gas_consumption` / `sensor.water_consumption` | Valore del contatore (usato dalla plancia Energia) |
-| `sensor.gas_daily`, `sensor.gas_monthly`, `sensor.gas_annual` | Consumo gas giornaliero / mensile / annuale |
-| `sensor.water_daily`, `sensor.water_monthly`, `sensor.water_annual` | Consumo acqua giornaliero / mensile / annuale |
+### Card
 
-### Risoluzione problemi
+Dopo l'installazione la risorsa è registrata da sola. Aggiungi una scheda manuale:
 
-- **Il sensore è "non disponibile"**: inserisci una lettura maggiore di 0.
-- **Il campo rifiuta il valore**: sono ammessi solo numeri con punto o virgola, senza unità di misura.
-- **Non riesco ad aggiungere il sensore alla plancia Energia**: controlla che sia disponibile e abbia `state_class: total_increasing`, `device_class` gas/water e unità `m³`.
-- **La plancia Energia non mostra ancora la lettura**: legge le statistiche orarie, quindi la lettura compare quando quell'ora è stata calcolata (pochi minuti dopo un riavvio).
+```yaml
+type: custom:rilevatore-consumi-card
+entity: sensor.gas_meter_reading   # il sensore "Lettura contatore"
+title: Gas
+```
 
-Cosa cambia in questa versione: [RELEASE_NOTES_v1.1.md](RELEASE_NOTES_v1.1.md).
+### Se arrivi dalla v1.x (package YAML)
+
+Per non perdere letture e storico:
+1. Backup e annota la lettura attuale.
+2. Rimuovi il package YAML (e le viste) e riavvia, fermando HA in modo pulito.
+3. In *Impostazioni → Dispositivi e servizi → Entità* elimina il vecchio sensore "non più fornito".
+4. Aggiungi l'integrazione con la lettura annotata e, in **Sensore esistente**, `sensor.gas_consumption` / `sensor.water_consumption`: il nuovo sensore ne prende il nome e quindi lo storico.
+
+Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare così.
+
+### Servizi
+
+- `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
+- `rilevatore_consumi.read_from_photo` — `media` (restituisce la proposta, non salva)
 
 ---
 
 <a id="english"></a>
 ## 🇬🇧 English
 
-Home Assistant package to enter your **gas and water meter readings by hand** and see them in the **Energy dashboard**, with daily, monthly and yearly consumption. Made for people who cannot (or do not want to) install sensors next to their meters.
+Home Assistant integration to record the **gas** and **water meter** reading (whole m³), show it in the **Energy dashboard** and compute today / month / year consumption. Built for meters where no sensor can be installed: enter the reading **by hand** or **from a photo**.
 
 Requires Home Assistant **2025.10 or later**.
 
-### What is included
-
-| File | Purpose |
-|------|---------|
-| `packages/consumo_gas.yaml` | Helpers, sensor, utility meters and automation for gas |
-| `packages/consumo_acqua.yaml` | Same for water |
-| `cards/vista_consumi_gas.yaml` | Full dashboard view for gas |
-| `cards/vista_consumi_acqua.yaml` | Full dashboard view for water |
-| `rse.png`, `contatoreH2o.png` | Optional pictures for the view (copy them to `/config/www/foto-pkg/`) |
-
-You can install gas only, water only, or both.
-
 ### Installation
 
-1. Enable packages in `configuration.yaml` (if you have not already):
+**HACS**: Integrations → ⋮ → *Custom repositories* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (type *Integration*) → install → restart.
+**Manual**: copy `custom_components/rilevatore_consumi` into HA's `custom_components` folder and restart.
 
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
+### Setup
 
-2. Copy `consumo_gas.yaml` and/or `consumo_acqua.yaml` to `/config/packages/`.
-3. *Developer tools → YAML → Check configuration*, then restart Home Assistant.
-4. Type your current meter reading in the **"Valore rilevato"** field (dot or comma, e.g. `1234.567`).
-5. Add the view: *Edit dashboard → three dots → Raw configuration editor* and paste `cards/vista_consumi_*.yaml` inside `views:` (or copy single cards). The 24-hour graph needs **mini-graph-card** from HACS (optional: use a `history-graph` card instead).
-6. *Settings → Dashboards → Energy*: add **Gas** (`sensor.gas_consumption`) and/or **Water** (`sensor.water_consumption`) as sources.
+*Settings → Devices & services → Add integration → Rilevatore consumi.* Add one gas and one water meter with name, type and current reading (integer part only).
 
-### How to use
+Each meter provides:
+- **Meter reading** (use it as gas/water source in the Energy dashboard);
+- **Consumption today / month / year**;
+- **New reading** (number field) and **Last photo** (kept in memory only, never written to disk).
 
-Whenever you read your meter, type the value in **"Valore rilevato"**. Date and time are recorded automatically.
+### Entering a reading
 
-The value must **always increase**: a lower value is read by Home Assistant as a meter replacement (new cycle). If you make a mistake, fix it right away.
+- **By hand**: the card, the *New reading* entity or the `rilevatore_consumi.set_reading` service.
+- **From a photo**: in the card tap 📷, take the picture, check the proposed value and confirm. Needs an **AI Task** entity (e.g. Google Gemini, or local Ollama if you don't want photos sent to external services). You can choose which one in the integration options. The value is only a suggestion: **nothing is saved without your confirmation**.
 
-### Entities
+Checks: a lower reading is rejected (if you replaced the meter, confirm "meter replaced"); an increase above the threshold (300 m³ gas, 100 m³ water, configurable) must be confirmed.
 
-| Entity | Description |
-|--------|-------------|
-| `input_text.gas_reading_value` / `input_text.water_reading_value` | Reading entry field |
-| `sensor.gas_consumption` / `sensor.water_consumption` | Meter value (used by the Energy dashboard) |
-| `sensor.gas_daily`, `sensor.gas_monthly`, `sensor.gas_annual` | Gas consumption per day / month / year |
-| `sensor.water_daily`, `sensor.water_monthly`, `sensor.water_annual` | Water consumption per day / month / year |
+### Card
 
-### Troubleshooting
+The resource is registered automatically. Add a manual card:
 
-- **The sensor is "unavailable"**: enter a reading greater than 0.
-- **The field rejects my value**: only numbers with dot or comma are accepted, no units.
-- **I cannot add the sensor to the Energy dashboard**: check that it is available and has `state_class: total_increasing`, a gas/water `device_class` and unit `m³`.
-- **Energy dashboard does not show my reading yet**: it reads hourly statistics, so a reading appears once its hour has been compiled (a few minutes after a restart).
+```yaml
+type: custom:rilevatore-consumi-card
+entity: sensor.gas_meter_reading   # the "Meter reading" sensor
+title: Gas
+```
 
-What changed in this version: [RELEASE_NOTES_v1.1.md](RELEASE_NOTES_v1.1.md).
+### Coming from v1.x (YAML package)
+
+To keep readings and history:
+1. Back up and note the current reading.
+2. Remove the YAML package (and views) and restart, shutting HA down cleanly.
+3. In *Settings → Devices & services → Entities* delete the old "no longer provided" sensor.
+4. Add the integration with the noted reading and, under **Existing sensor**, `sensor.gas_consumption` / `sensor.water_consumption`: the new sensor takes that name and therefore its history.
+
+The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
+
+### Services
+
+- `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
+- `rilevatore_consumi.read_from_photo` — `media` (returns the proposal, saves nothing)

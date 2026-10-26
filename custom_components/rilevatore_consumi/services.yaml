@@ -1,0 +1,37 @@
+set_reading:
+  target:
+    entity:
+      integration: rilevatore_consumi
+  fields:
+    reading:
+      required: true
+      example: 5726
+      selector:
+        number:
+          min: 0
+          max: 99999999
+          step: 1
+          mode: box
+          unit_of_measurement: m³
+    force:
+      required: false
+      default: false
+      selector:
+        boolean:
+    replace_meter:
+      required: false
+      default: false
+      selector:
+        boolean:
+
+read_from_photo:
+  target:
+    entity:
+      integration: rilevatore_consumi
+  fields:
+    media:
+      required: true
+      selector:
+        media:
+          accept:
+            - image/*

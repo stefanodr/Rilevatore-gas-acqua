@@ -1,0 +1,5 @@
+{
+  "name": "Rilevatore consumi gas/acqua",
+  "homeassistant": "2025.10.0",
+  "render_readme": true
+}

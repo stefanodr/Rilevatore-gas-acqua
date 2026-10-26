@@ -1,0 +1,123 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a meter",
+        "description": "Add a gas or water meter. Enter the current reading (whole cubic metres), or pick an existing sensor to import its value and take over its entity ID, so your Energy dashboard history continues without a gap.",
+        "data": {
+          "name": "Name",
+          "meter_type": "Meter type",
+          "initial_reading": "Current reading (m³)",
+          "existing_entity": "Existing sensor to replace (optional)"
+        },
+        "data_description": {
+          "initial_reading": "Only the whole part, without decimals. Leave empty to import it from the existing sensor.",
+          "existing_entity": "For example sensor.gas_consumption from the old package. Its value is imported and its entity ID is reused once the old sensor is gone."
+        }
+      }
+    },
+    "error": {
+      "name_required": "Enter a name.",
+      "reading_required": "Enter the current reading, or pick an existing sensor that has a valid numeric value."
+    },
+    "abort": {
+      "already_configured": "A meter with this type and name already exists."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Meter options",
+        "data": {
+          "ai_task_entity": "AI Task entity for photo reading",
+          "max_jump": "Largest accepted increase (m³)"
+        },
+        "data_description": {
+          "ai_task_entity": "Used to read the meter from a photo. Leave empty to use the default AI Task entity.",
+          "max_jump": "A new reading higher than the last one by more than this needs an explicit confirmation."
+        }
+      }
+    }
+  },
+  "selector": {
+    "meter_type": {
+      "options": {
+        "gas": "Gas",
+        "water": "Water"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total": { "name": "Meter reading" },
+      "consumption_day": { "name": "Consumption today" },
+      "consumption_month": { "name": "Consumption this month" },
+      "consumption_year": { "name": "Consumption this year" }
+    },
+    "number": {
+      "new_reading": { "name": "New reading" }
+    },
+    "image": {
+      "last_photo": { "name": "Last photo" }
+    }
+  },
+  "services": {
+    "set_reading": {
+      "name": "Set reading",
+      "description": "Records a new meter reading in whole cubic metres. It must not be lower than the current one, unless the meter was replaced.",
+      "fields": {
+        "reading": {
+          "name": "Reading",
+          "description": "Meter reading in m³, whole part only."
+        },
+        "force": {
+          "name": "Confirm large increase",
+          "description": "Accept an increase larger than the configured maximum."
+        },
+        "replace_meter": {
+          "name": "Meter replaced",
+          "description": "Accept a lower reading because the meter was replaced. Consumption already counted in the current periods is kept."
+        }
+      }
+    },
+    "read_from_photo": {
+      "name": "Read from photo",
+      "description": "Reads the whole part of the meter reading from an image using an AI Task entity. It only returns a proposal and never saves it.",
+      "fields": {
+        "media": {
+          "name": "Image",
+          "description": "Image of the meter (for example a camera or media source)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_reading": {
+      "message": "The reading {new} is not valid."
+    },
+    "reading_lower": {
+      "message": "The new reading {new} is lower than the current one ({current}). If the meter was replaced, use the replaced-meter option."
+    },
+    "reading_jump": {
+      "message": "The new reading {new} is {max} m³ or more above the current one ({current}). Confirm it explicitly if it is correct."
+    },
+    "photo_unavailable": {
+      "message": "The photo entity is not available yet."
+    },
+    "ai_task_missing": {
+      "message": "The AI Task integration is not available. Add an AI provider (for example Google Gemini or Ollama) first."
+    },
+    "ai_failed": {
+      "message": "Could not read the photo: {error}"
+    },
+    "media_required": {
+      "message": "Select an image."
+    }
+  },
+  "issues": {
+    "entity_id_busy": {
+      "title": "Entity ID {entity_id} is still in use",
+      "description": "The meter \"{name}\" could not take over {entity_id} because another active entity uses it. Remove the old package or entity, then reload this integration."
+    }
+  }
+}
