@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     config_validation as cv,
+    device_registry as dr,
     entity_registry as er,
     issue_registry as ir,
 )
@@ -55,7 +56,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: RilevatoreConfigEntry) -
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(meter.async_start())
     _async_adopt_entity_id(hass, entry)
+    _async_sync_device_name(hass, entry)
+    entry.async_on_unload(entry.add_update_listener(_async_title_changed))
     return True
+
+
+def _async_sync_device_name(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Il nome del dispositivo segue il titolo dell'integrazione."""
+    registry = dr.async_get(hass)
+    device = registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    if device is not None and device.name != entry.title:
+        registry.async_update_device(device.id, name=entry.title)
+
+
+async def _async_title_changed(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Dopo una modifica (nome o opzioni): aggiorna il dispositivo e ricarica."""
+    _async_sync_device_name(hass, entry)
+    hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: RilevatoreConfigEntry) -> bool:

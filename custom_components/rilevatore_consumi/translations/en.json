@@ -3,10 +3,16 @@
     "step": {
       "user": {
         "title": "Add a meter",
+        "description": "Choose which kind of meter to add. If you have two, add them one at a time.",
+        "data": {
+          "meter_type": "Meter type"
+        }
+      },
+      "details": {
+        "title": "Add a meter",
         "description": "Add a gas or water meter. Enter the current reading (whole cubic metres), or pick an existing sensor to import its value and take over its entity ID, so your Energy dashboard history continues without a gap.",
         "data": {
           "name": "Name",
-          "meter_type": "Meter type",
           "initial_reading": "Current reading (m³)",
           "existing_entity": "Existing sensor to replace (optional)"
         },
@@ -49,16 +55,28 @@
   },
   "entity": {
     "sensor": {
-      "total": { "name": "Meter reading" },
-      "consumption_day": { "name": "Consumption today" },
-      "consumption_month": { "name": "Consumption this month" },
-      "consumption_year": { "name": "Consumption this year" }
+      "total": {
+        "name": "Meter reading"
+      },
+      "consumption_day": {
+        "name": "Consumption today"
+      },
+      "consumption_month": {
+        "name": "Consumption this month"
+      },
+      "consumption_year": {
+        "name": "Consumption this year"
+      }
     },
     "number": {
-      "new_reading": { "name": "New reading" }
+      "new_reading": {
+        "name": "New reading"
+      }
     },
     "image": {
-      "last_photo": { "name": "Last photo" }
+      "last_photo": {
+        "name": "Last photo"
+      }
     }
   },
   "services": {

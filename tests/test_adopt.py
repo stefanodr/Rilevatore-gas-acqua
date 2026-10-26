@@ -104,3 +104,20 @@ async def test_without_existing_entity_nothing_changes(hass: HomeAssistant) -> N
     await hass.async_block_till_done()
     assert hass.states.get("sensor.gas_meter_reading").state == "5726"
     assert hass.states.get(OLD) is None
+
+
+async def test_device_name_follows_entry_title(hass: HomeAssistant) -> None:
+    """Rinominando l'integrazione cambia anche il nome del dispositivo."""
+    from homeassistant.helpers import device_registry as dr
+
+    entry = make_entry(name="Gas")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    registry = dr.async_get(hass)
+    device = registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    assert device.name == "Gas"
+
+    hass.config_entries.async_update_entry(entry, title="Acqua")
+    await hass.async_block_till_done()
+    assert registry.async_get(device.id).name == "Acqua"

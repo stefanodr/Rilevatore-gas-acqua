@@ -3,10 +3,16 @@
     "step": {
       "user": {
         "title": "Aggiungi un contatore",
+        "description": "Scegli che tipo di contatore vuoi aggiungere. Se ne hai due, aggiungili uno alla volta.",
+        "data": {
+          "meter_type": "Tipo di contatore"
+        }
+      },
+      "details": {
+        "title": "Aggiungi un contatore",
         "description": "Aggiungi un contatore del gas o dell'acqua. Inserisci la lettura attuale (metri cubi interi), oppure scegli un sensore esistente per importarne il valore e riutilizzarne il nome: così lo storico della plancia Energia continua senza interruzioni.",
         "data": {
           "name": "Nome",
-          "meter_type": "Tipo di contatore",
           "initial_reading": "Lettura attuale (m³)",
           "existing_entity": "Sensore esistente da sostituire (facoltativo)"
         },
@@ -49,16 +55,28 @@
   },
   "entity": {
     "sensor": {
-      "total": { "name": "Lettura contatore" },
-      "consumption_day": { "name": "Consumo oggi" },
-      "consumption_month": { "name": "Consumo del mese" },
-      "consumption_year": { "name": "Consumo dell'anno" }
+      "total": {
+        "name": "Lettura contatore"
+      },
+      "consumption_day": {
+        "name": "Consumo oggi"
+      },
+      "consumption_month": {
+        "name": "Consumo del mese"
+      },
+      "consumption_year": {
+        "name": "Consumo dell'anno"
+      }
     },
     "number": {
-      "new_reading": { "name": "Nuova lettura" }
+      "new_reading": {
+        "name": "Nuova lettura"
+      }
     },
     "image": {
-      "last_photo": { "name": "Ultima foto" }
+      "last_photo": {
+        "name": "Ultima foto"
+      }
     }
   },
   "services": {

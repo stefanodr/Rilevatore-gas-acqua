@@ -17,12 +17,18 @@ from custom_components.rilevatore_consumi.const import (
 from .conftest import make_entry
 
 
-async def _start(hass: HomeAssistant):
+async def _start(hass: HomeAssistant, meter_type: str = "gas"):
+    """Apre il flusso e supera il primo passo (scelta del tipo)."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_TYPE: meter_type}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "details"
     return result
 
 
@@ -31,7 +37,7 @@ async def test_manual_reading(hass: HomeAssistant) -> None:
     result = await _start(hass)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "Gas", CONF_TYPE: "gas", CONF_INITIAL: 5726},
+        {"name": "Gas", CONF_INITIAL: 5726},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Gas"
@@ -48,7 +54,6 @@ async def test_reading_from_existing_sensor(hass: HomeAssistant) -> None:
         result["flow_id"],
         {
             "name": "Gas",
-            CONF_TYPE: "gas",
             CONF_EXISTING: "sensor.gas_consumption",
         },
     )
@@ -65,7 +70,6 @@ async def test_typed_reading_wins_over_existing_sensor(hass: HomeAssistant) -> N
         result["flow_id"],
         {
             "name": "Gas",
-            CONF_TYPE: "gas",
             CONF_INITIAL: 5726,
             CONF_EXISTING: "sensor.gas_consumption",
         },
@@ -75,9 +79,9 @@ async def test_typed_reading_wins_over_existing_sensor(hass: HomeAssistant) -> N
 
 async def test_reading_required(hass: HomeAssistant) -> None:
     """Senza lettura e senza sensore valido si resta nel modulo."""
-    result = await _start(hass)
+    result = await _start(hass, "water")
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"name": "Acqua", CONF_TYPE: "water"}
+        result["flow_id"], {"name": "Acqua"}
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "reading_required"}
@@ -89,7 +93,7 @@ async def test_existing_sensor_without_number(hass: HomeAssistant) -> None:
     result = await _start(hass)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "Gas", CONF_TYPE: "gas", CONF_EXISTING: "sensor.gas_consumption"},
+        {"name": "Gas", CONF_EXISTING: "sensor.gas_consumption"},
     )
     assert result["errors"] == {"base": "reading_required"}
 
@@ -98,7 +102,7 @@ async def test_name_required(hass: HomeAssistant) -> None:
     """Il nome non può essere vuoto."""
     result = await _start(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"name": "   ", CONF_TYPE: "gas", CONF_INITIAL: 1}
+        result["flow_id"], {"name": "   ", CONF_INITIAL: 1}
     )
     assert result["errors"] == {"name": "name_required"}
 
@@ -108,7 +112,7 @@ async def test_duplicate_is_aborted(hass: HomeAssistant) -> None:
     make_entry(name="Gas").add_to_hass(hass)
     result = await _start(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"name": "Gas", CONF_TYPE: "gas", CONF_INITIAL: 1}
+        result["flow_id"], {"name": "Gas", CONF_INITIAL: 1}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
@@ -117,9 +121,9 @@ async def test_duplicate_is_aborted(hass: HomeAssistant) -> None:
 async def test_gas_and_water_can_coexist(hass: HomeAssistant) -> None:
     """Un contatore gas e uno acqua insieme."""
     for name, kind, reading in (("Gas", "gas", 5726), ("Acqua", "water", 364)):
-        result = await _start(hass)
+        result = await _start(hass, kind)
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {"name": name, CONF_TYPE: kind, CONF_INITIAL: reading}
+            result["flow_id"], {"name": name, CONF_INITIAL: reading}
         )
         assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
@@ -144,3 +148,14 @@ async def test_options_flow(hass: HomeAssistant) -> None:
     assert entry.options[CONF_MAX_JUMP] == 50
     assert CONF_AI_TASK not in entry.options
     assert hass.states.get("sensor.gas_meter_reading").attributes["max_jump"] == 50
+
+
+async def test_default_name_follows_type(hass: HomeAssistant) -> None:
+    """Il nome proposto dipende dal tipo scelto, non resta sempre "Gas"."""
+    hass.config.language = "it"
+    result = await _start(hass, "water")
+    key = next(k for k in result["data_schema"].schema if k == "name")
+    assert key.description["suggested_value"] == "Acqua"
+    result = await _start(hass, "gas")
+    key = next(k for k in result["data_schema"].schema if k == "name")
+    assert key.description["suggested_value"] == "Gas"

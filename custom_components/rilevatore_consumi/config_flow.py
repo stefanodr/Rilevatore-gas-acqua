@@ -10,7 +10,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlowWithReload,
+    OptionsFlow,
 )
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
@@ -28,6 +28,7 @@ from .const import (
     MAX_READING,
     METER_TYPES,
     TYPE_GAS,
+    TYPE_WATER,
 )
 
 
@@ -48,13 +49,43 @@ class RilevatoreConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Inizializza il flusso."""
+        self._meter_type = TYPE_GAS
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Passo unico: tipo, nome e lettura iniziale (o entità da sostituire)."""
-        errors: dict[str, str] = {}
+        """Primo passo: gas o acqua."""
         if user_input is not None:
-            meter_type = user_input[CONF_TYPE]
+            self._meter_type = user_input[CONF_TYPE]
+            return await self.async_step_details()
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_TYPE, default=TYPE_GAS): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=list(METER_TYPES),
+                        translation_key="meter_type",
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(step_id="user", data_schema=schema)
+
+    def _default_name(self) -> str:
+        italian = self.hass.config.language.startswith("it")
+        if self._meter_type == TYPE_WATER:
+            return "Acqua" if italian else "Water"
+        return "Gas"
+
+    async def async_step_details(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Secondo passo: nome e lettura iniziale (o sensore da sostituire)."""
+        errors: dict[str, str] = {}
+        meter_type = self._meter_type
+        if user_input is not None:
             name = user_input[CONF_NAME].strip()
             existing = user_input.get(CONF_EXISTING)
 
@@ -83,13 +114,6 @@ class RilevatoreConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_NAME): str,
-                vol.Required(CONF_TYPE, default=TYPE_GAS): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=list(METER_TYPES),
-                        translation_key="meter_type",
-                        mode=selector.SelectSelectorMode.LIST,
-                    )
-                ),
                 vol.Optional(CONF_INITIAL): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=0,
@@ -104,9 +128,9 @@ class RilevatoreConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
             }
         )
-        suggested = user_input or {CONF_NAME: "Gas"}
+        suggested = user_input or {CONF_NAME: self._default_name()}
         return self.async_show_form(
-            step_id="user",
+            step_id="details",
             data_schema=self.add_suggested_values_to_schema(schema, suggested),
             errors=errors,
         )
@@ -118,7 +142,7 @@ class RilevatoreConfigFlow(ConfigFlow, domain=DOMAIN):
         return RilevatoreOptionsFlow()
 
 
-class RilevatoreOptionsFlow(OptionsFlowWithReload):
+class RilevatoreOptionsFlow(OptionsFlow):
     """Opzioni di un contatore."""
 
     async def async_step_init(
