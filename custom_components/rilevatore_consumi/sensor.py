@@ -15,7 +15,12 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant, SupportsResponse
-from homeassistant.helpers import config_validation as cv, entity_platform, selector
+from homeassistant.helpers import (
+    config_validation as cv,
+    entity_platform,
+    entity_registry as er,
+    selector,
+)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
@@ -23,6 +28,7 @@ from .const import (
     ATTR_MEDIA,
     ATTR_READING,
     ATTR_REPLACE,
+    DOMAIN,
     MAX_READING,
     PERIODS,
     TYPE_WATER,
@@ -61,6 +67,12 @@ async def async_setup_entry(
         "async_service_set_reading",
     )
     platform.async_register_entity_service(
+        "import_history",
+        {vol.Required("source"): cv.entity_id},
+        "async_service_import_history",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    platform.async_register_entity_service(
         "read_from_photo",
         {vol.Required(ATTR_MEDIA): selector.MediaSelector()},
         "async_service_read_from_photo",
@@ -75,6 +87,9 @@ class TotalSensor(RilevatoreEntity, SensorEntity):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfVolume.CUBIC_METERS
     _attr_suggested_display_precision = 0
+    # L'elenco delle ultime letture serve solo alla card: non va nel database
+    _unrecorded_attributes = frozenset({"recent_readings", "day_entity",
+        "month_entity", "year_entity", "photo_entity", "input_entity"})
 
     def __init__(self, meter: Meter) -> None:
         """Inizializza il sensore."""
@@ -95,12 +110,24 @@ class TotalSensor(RilevatoreEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Attributi usati anche dalla card."""
         updated = self.meter.updated
+        registry = er.async_get(self.hass)
+        entry_id = self.meter.entry.entry_id
+
+        def sibling(domain: str, key: str) -> str | None:
+            return registry.async_get_entity_id(domain, DOMAIN, f"{entry_id}_{key}")
+
         return {
-            "entry_id": self.meter.entry.entry_id,
+            "entry_id": entry_id,
+            "day_entity": sibling("sensor", "consumption_day"),
+            "month_entity": sibling("sensor", "consumption_month"),
+            "year_entity": sibling("sensor", "consumption_year"),
+            "photo_entity": sibling("image", "photo"),
+            "input_entity": sibling("number", "reading_input"),
             "meter_type": self.meter.meter_type,
             "previous_reading": self.meter.previous,
             "last_reading_time": updated.isoformat() if updated else None,
             "max_jump": self.meter.max_jump,
+            "recent_readings": self.meter.log[-12:],
         }
 
 

@@ -35,3 +35,15 @@ read_from_photo:
         media:
           accept:
             - image/*
+
+import_history:
+  target:
+    entity:
+      integration: rilevatore_consumi
+      domain: sensor
+  fields:
+    source:
+      required: true
+      example: sensor.gas_consumption
+      selector:
+        text:

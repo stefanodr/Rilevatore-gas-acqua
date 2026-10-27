@@ -121,3 +121,34 @@ async def test_device_name_follows_entry_title(hass: HomeAssistant) -> None:
     hass.config_entries.async_update_entry(entry, title="Acqua")
     await hass.async_block_till_done()
     assert registry.async_get(device.id).name == "Acqua"
+
+
+async def test_adopt_set_later_from_options(hass: HomeAssistant) -> None:
+    """Il nome del vecchio sensore si può indicare anche dopo, dalle opzioni."""
+    entry = make_entry()  # creato senza "sensore esistente"
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.gas_meter_reading") is not None
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {"existing_entity": OLD, "max_jump": 300}
+    )
+    await hass.async_block_till_done()
+    assert er.async_get(hass).async_get(OLD).platform == DOMAIN
+    assert hass.states.get(OLD).state == "5726"
+
+
+async def test_recent_readings_log(hass: HomeAssistant) -> None:
+    """Le ultime letture sono esposte alla card."""
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await hass.services.async_call(
+        DOMAIN, "set_reading", {"reading": 5730},
+        target={"entity_id": "sensor.gas_meter_reading"}, blocking=True,
+    )
+    rows = hass.states.get("sensor.gas_meter_reading").attributes["recent_readings"]
+    assert [r["v"] for r in rows] == [5726, 5730]

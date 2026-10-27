@@ -52,3 +52,9 @@ class RilevatoreEntity(Entity):
         return await self.meter.async_read_media(
             media_id, media.get("media_content_type") or "image/jpeg"
         )
+
+    async def async_service_import_history(self, source: str) -> ServiceResponse:
+        """Servizio import_history: porta qui lo storico di un vecchio sensore."""
+        from .history import async_import_history  # noqa: PLC0415
+
+        return await async_import_history(self.hass, self.entity_id, source)

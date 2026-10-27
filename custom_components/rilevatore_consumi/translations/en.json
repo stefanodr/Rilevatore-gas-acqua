@@ -36,11 +36,13 @@
         "title": "Meter options",
         "data": {
           "ai_task_entity": "AI Task entity for photo reading",
-          "max_jump": "Largest accepted increase (m³)"
+          "max_jump": "Largest accepted increase (m³)",
+          "existing_entity": "Sensor whose name and history to take over"
         },
         "data_description": {
           "ai_task_entity": "Used to read the meter from a photo. Leave empty to use the default AI Task entity.",
-          "max_jump": "A new reading higher than the last one by more than this needs an explicit confirmation."
+          "max_jump": "A new reading higher than the last one by more than this needs an explicit confirmation.",
+          "existing_entity": "To keep the history of the old package: pick the old sensor here (e.g. sensor.gas_consumption). First remove the package and delete the old sensor from Entities; the new one then takes its name and the statistics continue."
         }
       }
     }
@@ -107,6 +109,16 @@
           "description": "Image of the meter (for example a camera or media source)."
         }
       }
+    },
+    "import_history": {
+      "name": "Import history",
+      "description": "Copies the long-term statistics of an old sensor (even a deleted one) onto this sensor, so charts and the Energy dashboard continue without a gap. Safe to run again.",
+      "fields": {
+        "source": {
+          "name": "Source sensor",
+          "description": "ID of the old sensor, for example sensor.gas_consumption."
+        }
+      }
     }
   },
   "exceptions": {
@@ -130,6 +142,15 @@
     },
     "media_required": {
       "message": "Select an image."
+    },
+    "no_history": {
+      "message": "No statistics found for {source}. Check the exact ID in Developer tools → Statistics."
+    },
+    "nothing_to_import": {
+      "message": "Nothing to import: this sensor already has history that starts before or together with the source."
+    },
+    "same_source": {
+      "message": "The source must be a different sensor than the target."
     }
   },
   "issues": {

@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+MAX_LOG = 60
+
 INSTRUCTIONS = {
     "gas": (
         "Nella foto c'è un contatore del gas. Leggi il valore totale mostrato sul "
@@ -108,6 +110,7 @@ class Meter:
         self.previous: int | None = None
         self.updated: datetime | None = None
         self.baselines: dict[str, dict[str, Any]] = {}
+        self.log: list[dict[str, Any]] = []
         self.photo: PhotoImage | None = None
         self._listeners: list[Callable[[], None]] = []
 
@@ -137,11 +140,15 @@ class Meter:
             updated = data.get("updated")
             self.updated = dt_util.parse_datetime(updated) if updated else None
             self.baselines = data.get("baselines", {})
+            self.log = list(data.get("log", []))
+            if not self.log and self.reading is not None:
+                self.log = [self._log_item(self.reading, self.updated or now)]
         else:
             initial = self.entry.data.get(CONF_INITIAL)
             if initial is not None:
                 self.reading = int(initial)
                 self.updated = now
+                self.log = [self._log_item(self.reading, now)]
         if self._roll(now):
             await self._store.async_save(self._as_dict())
 
@@ -206,7 +213,15 @@ class Meter:
             "previous": self.previous,
             "updated": self.updated.isoformat() if self.updated else None,
             "baselines": self.baselines,
+            "log": self.log,
         }
+
+    @staticmethod
+    def _log_item(value: int, when: datetime, replaced: bool = False) -> dict[str, Any]:
+        item: dict[str, Any] = {"t": when.isoformat(), "v": value}
+        if replaced:
+            item["replaced"] = True
+        return item
 
     # ------------------------------------------------------------------ letture
     async def async_set_reading(
@@ -251,6 +266,7 @@ class Meter:
         self.previous = current
         self.reading = new
         self.updated = now
+        self.log = [*self.log, self._log_item(new, now, replace)][-MAX_LOG:]
         await self._store.async_save(self._as_dict())
         self._notify()
 

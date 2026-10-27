@@ -16,7 +16,8 @@ Da pacchetto YAML a **integrazione personalizzata** (`rilevatore_consumi`), inst
 - **Lettura da foto**: scatta la foto al contatore dalla card (o con il servizio `rilevatore_consumi.read_from_photo`) e l'AI propone il valore intero. **Non viene mai salvato senza la tua conferma**; la foto resta solo in memoria. Richiede un'entità AI Task (es. Google Gemini oppure Ollama locale).
 - Inserimento manuale sempre disponibile (card, entità numerica o servizio `set_reading`).
 - Controlli: lettura più bassa rifiutata (a meno di sostituzione contatore), aumento anomalo da confermare.
-- Card Lovelace inclusa (`custom:rilevatore-consumi-card`), registrata automaticamente.
+- Card Lovelace inclusa (`custom:rilevatore-consumi-card`, `meter: gas` o `water`), registrata automaticamente: lettura, consumi di oggi/mese/anno, grafico a barre su 30 giorni, 12 mesi e 5 anni con totale e media, ultime letture, inserimento a mano o da foto.
+- **Storico**: servizio `import_history` e opzione "sensore di cui prendere il nome" per riprendere le statistiche del vecchio sensore della v1.x.
 - Opzione "sensore esistente": il nuovo sensore prende il nome (es. `sensor.gas_consumption`) e quindi lo **storico** del sensore della v1.x.
 - Traduzioni italiano e inglese. Tutta la logica è coperta da test automatici.
 
@@ -45,7 +46,8 @@ From YAML package to a **custom integration** (`rilevatore_consumi`), installabl
 - **Photo reading**: take a picture of the meter from the card (or use the `rilevatore_consumi.read_from_photo` service) and AI proposes the whole-number value. **Nothing is saved without your confirmation**; the photo is kept in memory only. Requires an AI Task entity (e.g. Google Gemini or local Ollama).
 - Manual entry always available (card, number entity or `set_reading` service).
 - Safety checks: a lower reading is rejected (unless the meter was replaced), an unusual jump must be confirmed.
-- Bundled Lovelace card (`custom:rilevatore-consumi-card`), registered automatically.
+- Bundled Lovelace card (`custom:rilevatore-consumi-card`, `meter: gas` or `water`), registered automatically: reading, today/month/year consumption, bar chart over 30 days, 12 months and 5 years with total and average, latest readings, manual or photo entry.
+- **History**: `import_history` service and a "sensor whose name to take over" option to pick up the statistics of the old v1.x sensor.
 - "Existing sensor" option: the new sensor takes over its name (e.g. `sensor.gas_consumption`) and therefore the **history** of the v1.x sensor.
 - Italian and English translations. All logic is covered by automated tests.
 

@@ -36,11 +36,13 @@
         "title": "Opzioni del contatore",
         "data": {
           "ai_task_entity": "Entità AI Task per la lettura da foto",
-          "max_jump": "Aumento massimo accettato (m³)"
+          "max_jump": "Aumento massimo accettato (m³)",
+          "existing_entity": "Sensore di cui prendere il nome e lo storico"
         },
         "data_description": {
           "ai_task_entity": "Serve a leggere il contatore da una foto. Lascia vuoto per usare l'entità AI Task predefinita.",
-          "max_jump": "Una nuova lettura più alta dell'ultima di oltre questo valore richiede una conferma esplicita."
+          "max_jump": "Una nuova lettura più alta dell'ultima di oltre questo valore richiede una conferma esplicita.",
+          "existing_entity": "Per riprendere lo storico del vecchio package: scegli qui il vecchio sensore (es. sensor.gas_consumption). Va prima rimosso il package e eliminato il vecchio sensore dalle Entità; poi il nuovo ne prende il nome e le statistiche continuano."
         }
       }
     }
@@ -107,6 +109,16 @@
           "description": "Immagine del contatore (per esempio una telecamera o una sorgente multimediale)."
         }
       }
+    },
+    "import_history": {
+      "name": "Importa storico",
+      "description": "Copia le statistiche a lungo termine di un vecchio sensore (anche già eliminato) su questo sensore, così grafici e plancia Energia continuano senza interruzioni. Si può ripetere senza danni.",
+      "fields": {
+        "source": {
+          "name": "Sensore di origine",
+          "description": "ID del vecchio sensore, per esempio sensor.gas_consumption."
+        }
+      }
     }
   },
   "exceptions": {
@@ -130,6 +142,15 @@
     },
     "media_required": {
       "message": "Seleziona un'immagine."
+    },
+    "no_history": {
+      "message": "Non trovo statistiche per {source}. Controlla in Strumenti per sviluppatori → Statistiche l'ID esatto."
+    },
+    "nothing_to_import": {
+      "message": "Non c'è nulla da importare: questo sensore ha già uno storico che parte prima o insieme a quello di origine."
+    },
+    "same_source": {
+      "message": "L'origine deve essere un sensore diverso da quello di destinazione."
     }
   },
   "issues": {

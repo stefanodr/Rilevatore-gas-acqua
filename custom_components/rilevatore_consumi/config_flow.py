@@ -158,6 +158,9 @@ class RilevatoreOptionsFlow(OptionsFlow):
                 vol.Optional(CONF_AI_TASK): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="ai_task")
                 ),
+                vol.Optional(CONF_EXISTING): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Required(
                     CONF_MAX_JUMP, default=DEFAULT_MAX_JUMP.get(meter_type, 300)
                 ): selector.NumberSelector(

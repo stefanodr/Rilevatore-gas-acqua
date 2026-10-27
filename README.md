@@ -34,21 +34,27 @@ Controlli: una lettura più bassa viene rifiutata (se hai sostituito il contator
 
 ### Card
 
-Dopo l'installazione la risorsa è registrata da sola. Aggiungi una scheda manuale:
+Dopo l'installazione la risorsa è registrata da sola. Aggiungi una **scheda manuale**:
 
 ```yaml
 type: custom:rilevatore-consumi-card
-entity: sensor.gas_meter_reading   # il sensore "Lettura contatore"
-title: Gas
+meter: gas        # gas oppure water: la card trova da sola il sensore giusto
+title: Gas        # facoltativo
 ```
+
+La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
 
 ### Se arrivi dalla v1.x (package YAML)
 
-Per non perdere letture e storico:
+Lo storico della plancia Energia è legato al **nome** del sensore (`sensor.gas_consumption`, `sensor.water_consumption`). Per non perderlo:
 1. Backup e annota la lettura attuale.
-2. Rimuovi il package YAML (e le viste) e riavvia, fermando HA in modo pulito.
-3. In *Impostazioni → Dispositivi e servizi → Entità* elimina il vecchio sensore "non più fornito".
-4. Aggiungi l'integrazione con la lettura annotata e, in **Sensore esistente**, `sensor.gas_consumption` / `sensor.water_consumption`: il nuovo sensore ne prende il nome e quindi lo storico.
+2. Rimuovi il package YAML (e le viste) e riavvia, fermando HA in modo pulito. **Non** togliere i tuoi helper utility meter creati dall'interfaccia: continueranno a funzionare perché il sensore tornerà ad avere lo stesso nome.
+3. In *Impostazioni → Dispositivi e servizi → Entità* elimina il vecchio sensore "non più fornito". Le statistiche restano nel database.
+4. Aggiungi l'integrazione con la lettura annotata e, in **Sensore esistente**, `sensor.gas_consumption` / `sensor.water_consumption`: il nuovo sensore ne prende il nome e lo storico continua senza interruzioni.
+
+**Se hai già aggiunto il contatore senza indicare il sensore** (e il sensore ha un altro nome, per esempio `sensor.gas_meter_reading`), non serve rifarlo:
+- Opzione A: nelle *opzioni* dell'integrazione indica il vecchio sensore (dopo aver eliminato quello vecchio come al punto 3); l'integrazione lo rinomina e riprende le statistiche.
+- Opzione B: in *Strumenti per sviluppatori → Azioni* esegui `rilevatore_consumi.import_history`, scegli come destinazione il sensore "Lettura contatore" e come `source` il vecchio sensore (es. `sensor.gas_consumption`). Le statistiche vecchie vengono copiate sul nuovo sensore, senza buchi nel totale. Poi nella plancia Energia seleziona il nuovo sensore.
 
 Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare così.
 
@@ -56,6 +62,7 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 
 - `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
 - `rilevatore_consumi.read_from_photo` — `media` (restituisce la proposta, non salva)
+- `rilevatore_consumi.import_history` — `source` (copia le statistiche di un vecchio sensore)
 
 ---
 
@@ -89,21 +96,27 @@ Checks: a lower reading is rejected (if you replaced the meter, confirm "meter r
 
 ### Card
 
-The resource is registered automatically. Add a manual card:
+The resource is registered automatically. Add a **manual card**:
 
 ```yaml
 type: custom:rilevatore-consumi-card
-entity: sensor.gas_meter_reading   # the "Meter reading" sensor
-title: Gas
+meter: gas        # gas or water: the card finds the right sensor by itself
+title: Gas        # optional
 ```
+
+The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
 
 ### Coming from v1.x (YAML package)
 
-To keep readings and history:
+Energy dashboard history is tied to the sensor **name** (`sensor.gas_consumption`, `sensor.water_consumption`). To keep it:
 1. Back up and note the current reading.
-2. Remove the YAML package (and views) and restart, shutting HA down cleanly.
-3. In *Settings → Devices & services → Entities* delete the old "no longer provided" sensor.
-4. Add the integration with the noted reading and, under **Existing sensor**, `sensor.gas_consumption` / `sensor.water_consumption`: the new sensor takes that name and therefore its history.
+2. Remove the YAML package (and views) and restart, shutting HA down cleanly. Do **not** remove your utility meter helpers created from the UI: they keep working because the sensor gets the same name again.
+3. In *Settings → Devices & services → Entities* delete the old "no longer provided" sensor. Its statistics stay in the database.
+4. Add the integration with the noted reading and, under **Existing sensor**, `sensor.gas_consumption` / `sensor.water_consumption`: the new sensor takes that name and the history continues without a gap.
+
+**If you already added the meter without the existing sensor** (so it has another name, e.g. `sensor.gas_meter_reading`) there is no need to redo it:
+- Option A: in the integration *options* enter the old sensor (after deleting the old one as in step 3); the integration renames itself and picks up the statistics.
+- Option B: in *Developer tools → Actions* run `rilevatore_consumi.import_history`, target the "Meter reading" sensor and set `source` to the old sensor (e.g. `sensor.gas_consumption`). The old statistics are copied to the new sensor with no gap in the total. Then select the new sensor in the Energy dashboard.
 
 The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 
@@ -111,3 +124,4 @@ The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 
 - `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
 - `rilevatore_consumi.read_from_photo` — `media` (returns the proposal, saves nothing)
+- `rilevatore_consumi.import_history` — `source` (copies the statistics of an old sensor)

@@ -91,7 +91,7 @@ def _async_adopt_entity_id(hass: HomeAssistant, entry: RilevatoreConfigEntry) ->
     Così le statistiche della plancia Energia, legate al nome del sensore,
     continuano senza interruzioni.
     """
-    preferred = entry.data.get(CONF_EXISTING)
+    preferred = entry.options.get(CONF_EXISTING) or entry.data.get(CONF_EXISTING)
     issue_id = f"entity_id_busy_{entry.entry_id}"
     if not preferred:
         return
