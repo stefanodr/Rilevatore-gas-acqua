@@ -23,7 +23,7 @@ const TEXTS = {
     noStats: "Nessun dato storico disponibile",
     readings: "Ultime letture",
     replaced: "contatore sostituito",
-    newReading: "Nuova lettura (m³)",
+    newReading: "Nuova lettura",
     save: "Salva",
     photo: "Foto",
     reading_photo: "Leggo la foto…",
@@ -39,6 +39,24 @@ const TEXTS = {
     forceConfirm: "Confermo comunque",
     invalid: "Inserisci un numero intero.",
     unavailable: "Nessuna lettura disponibile",
+    file: "File",
+    importTitle: "Importa letture da file",
+    impFound: "Letture trovate",
+    impRange: "dal %from% al %to%, da %a% a %b% m³",
+    impTotal: "Consumo complessivo",
+    impSetsCurrent: "L'ultima lettura del file diventerà la lettura attuale.",
+    impKeepsCurrent: "La lettura attuale resta invariata (il file contiene solo dati precedenti).",
+    impDecreases: "Letture in diminuzione (contatore sostituito o errori), non vengono sommate:",
+    impIgnored: "Righe ignorate:",
+    impEstimate: "Il consumo tra una lettura e l'altra viene ripartito sui giorni (stima) per costruire il grafico.",
+    import: "Importa",
+    imported: "Importate %n% letture",
+    importedStats: "storico ricostruito: %h% ore",
+    importStatsError: "Letture importate, ma lo storico dei grafici non è stato scritto:",
+    errEmpty: "Il file è vuoto.",
+    errNoReadings: "Non ho trovato letture valide. Servono almeno una colonna con la data e una con il valore (per esempio data;lettura).",
+    errMultiple: "Il file contiene più entità, tienine una sola:",
+    errTooLarge: "Il file è troppo grande (massimo 2 MB).",
     notFound: "Entità non trovata:",
     noMeter: "Nessun contatore dell'integrazione trovato per:",
     wrongEntity: "Questa non è la \"Lettura contatore\" dell'integrazione (manca entry_id). Usa il sensore con gli attributi entry_id e meter_type:",
@@ -59,7 +77,7 @@ const TEXTS = {
     noStats: "No history available",
     readings: "Latest readings",
     replaced: "meter replaced",
-    newReading: "New reading (m³)",
+    newReading: "New reading",
     save: "Save",
     photo: "Photo",
     reading_photo: "Reading the photo…",
@@ -75,6 +93,24 @@ const TEXTS = {
     forceConfirm: "Confirm anyway",
     invalid: "Enter a whole number.",
     unavailable: "No reading available",
+    file: "File",
+    importTitle: "Import readings from a file",
+    impFound: "Readings found",
+    impRange: "from %from% to %to%, from %a% to %b% m³",
+    impTotal: "Total consumption",
+    impSetsCurrent: "The last reading in the file will become the current reading.",
+    impKeepsCurrent: "The current reading is unchanged (the file only has older data).",
+    impDecreases: "Decreasing readings (meter replaced or errors), not added up:",
+    impIgnored: "Rows ignored:",
+    impEstimate: "Consumption between readings is spread over the days (estimate) to build the chart.",
+    import: "Import",
+    imported: "Imported %n% readings",
+    importedStats: "history rebuilt: %h% hours",
+    importStatsError: "Readings imported, but the chart history was not written:",
+    errEmpty: "The file is empty.",
+    errNoReadings: "No valid readings found. A date column and a value column are needed (e.g. date;reading).",
+    errMultiple: "The file contains several entities, keep just one:",
+    errTooLarge: "The file is too large (2 MB maximum).",
     notFound: "Entity not found:",
     noMeter: "No meter of the integration found for:",
     wrongEntity: "This is not the integration's \"Meter reading\" sensor (entry_id missing). Use the sensor that has the entry_id and meter_type attributes:",
@@ -82,6 +118,7 @@ const TEXTS = {
 };
 
 const MAX_SIDE = 1600;
+const STATIC = "/rilevatore_consumi_static";
 const TABS = ["days", "months", "years"];
 const STATS_TTL_MS = 10 * 60 * 1000;
 
@@ -92,6 +129,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     }
     this._config = config;
     this._pending = null; // {value, warning, photoUrl}
+    this._imp = null; // {text, summary}
     this._message = "";
     this._busy = false;
     this._tab = "months";
@@ -189,12 +227,23 @@ class RilevatoreConsumiCard extends HTMLElement {
         .pending { margin-top: 12px; padding: 12px; border-radius: 8px;
           background: var(--secondary-background-color); }
         .pending img { max-width: 100%; max-height: 160px; border-radius: 8px; display: block; margin-bottom: 8px; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .headtxt { min-width: 0; }
+        .meterimg { width: 96px; max-height: 96px; object-fit: contain; border-radius: 8px; flex: none; }
+        .import { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--secondary-background-color); }
+        .import p { margin: 4px 0; font-size: 0.92em; }
+        .import .warn { color: var(--warning-color, #ffa600); }
         .hidden { display: none; }
       </style>
       <ha-card>
-        <div class="title"></div>
-        <div class="big"></div>
-        <div class="sub"></div>
+        <div class="head">
+          <div class="headtxt">
+            <div class="title"></div>
+            <div class="big"></div>
+            <div class="sub"></div>
+          </div>
+          <img class="meterimg hidden" alt="">
+        </div>
         <div class="tiles">
           <div class="tile"><div class="v" id="vDay"></div><div class="l" id="lDay"></div></div>
           <div class="tile"><div class="v" id="vMonth"></div><div class="l" id="lMonth"></div></div>
@@ -209,7 +258,9 @@ class RilevatoreConsumiCard extends HTMLElement {
           <input id="value" type="number" inputmode="numeric" step="1" min="0">
           <button id="save"></button>
           <button id="photo" class="secondary"></button>
+          <button id="csv" class="secondary"></button>
           <input id="file" type="file" accept="image/*" capture="environment" class="hidden">
+          <input id="csvfile" type="file" accept=".csv,.txt,text/csv,text/plain" class="hidden">
         </div>
         <div class="pending hidden">
           <img id="preview" class="hidden" alt="">
@@ -220,6 +271,14 @@ class RilevatoreConsumiCard extends HTMLElement {
             <button id="cancel" class="secondary"></button>
           </div>
         </div>
+        <div class="import hidden">
+          <div id="impTitle"><b></b></div>
+          <div id="impBody"></div>
+          <div class="row">
+            <button id="impGo"></button>
+            <button id="impCancel" class="secondary"></button>
+          </div>
+        </div>
         <div class="msg"></div>
       </ha-card>`;
     const $ = (s) => this.shadowRoot.querySelector(s);
@@ -228,6 +287,11 @@ class RilevatoreConsumiCard extends HTMLElement {
     $("#file").addEventListener("change", (ev) => this._onFile(ev));
     $("#confirm").addEventListener("click", () => this._onConfirm());
     $("#cancel").addEventListener("click", () => this._cancel());
+    $("#csv").addEventListener("click", () => $("#csvfile").click());
+    $("#csvfile").addEventListener("change", (ev) => this._onCsv(ev));
+    $("#impGo").addEventListener("click", () => this._importFile(true));
+    $("#impCancel").addEventListener("click", () => this._cancelImport());
+    $(".meterimg").addEventListener("error", (ev) => ev.target.classList.add("hidden"));
     $(".tabs").addEventListener("click", (ev) => {
       const tab = ev.target && ev.target.dataset && ev.target.dataset.tab;
       if (tab) this._selectTab(tab);
@@ -264,13 +328,16 @@ class RilevatoreConsumiCard extends HTMLElement {
     $("#lYear").textContent = t.year;
     $("#hReadings").textContent = t.readings;
 
+    this._renderImage(attrs);
     $("#save").textContent = t.save;
     $("#photo").textContent = `📷 ${t.photo}`;
+    $("#csv").textContent = `📁 ${t.file}`;
     $("#confirm").textContent = t.confirm;
     $("#cancel").textContent = t.cancel;
     $("#value").placeholder = t.newReading;
     $("#save").disabled = this._busy;
     $("#photo").disabled = this._busy;
+    $("#csv").disabled = this._busy;
 
     const msg = $(".msg");
     msg.textContent = this._message;
@@ -279,6 +346,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     this._renderTabs();
     this._renderReadings(attrs.recent_readings || []);
     this._renderPending();
+    this._renderImport();
 
     // Grafico: si ricarica se cambia entità, scheda o lettura (o dopo un po')
     const key = `${id}|${attrs.last_reading_time || ""}|${this._cur.days}|${this._cur.months}|${this._cur.years}`;
@@ -498,6 +566,129 @@ class RilevatoreConsumiCard extends HTMLElement {
     }
     $("#confirm").textContent =
       warn === "lower" ? t.replaceConfirm : warn === "jump" ? t.forceConfirm : t.confirm;
+  }
+
+  _renderImage(attrs) {
+    const img = this.shadowRoot.querySelector(".meterimg");
+    const cfg = this._config.image;
+    let src = null;
+    if (cfg === false || cfg === "none") {
+      src = null;
+    } else if (typeof cfg === "string" && cfg) {
+      src = cfg;
+    } else {
+      const type = attrs.meter_type || String(this._config.meter || "").toLowerCase();
+      if (type) src = `${STATIC}/meter-${type === "water" ? "water" : "gas"}.png`;
+    }
+    if (!src) {
+      img.classList.add("hidden");
+      return;
+    }
+    if (img.getAttribute("src") !== src) {
+      img.classList.remove("hidden");
+      img.src = src;
+    }
+  }
+
+  // ---------------------------------------------------------------- importazione da file
+  async _onCsv(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!file) return;
+    if (!this._target()) return;
+    let text;
+    try {
+      text = await file.text();
+    } catch (err) {
+      this._setMessage((err && err.message) || String(err), "error");
+      return;
+    }
+    this._imp = { text, summary: null };
+    await this._importFile(false);
+  }
+
+  _importError(data) {
+    const t = this._t;
+    const map = { empty: t.errEmpty, no_readings: t.errNoReadings, too_large: t.errTooLarge };
+    if (data && data.code === "multiple_entities") {
+      return `${t.errMultiple} ${(data.entities || []).join(", ")}`;
+    }
+    return (data && map[data.code]) || (data && data.message) || "Error";
+  }
+
+  async _importFile(commit) {
+    const target = this._target();
+    if (!target || !this._imp) return;
+    this._busy = true;
+    this._setMessage("", "");
+    try {
+      const resp = await this._hass.fetchWithAuth(
+        `/api/rilevatore_consumi/import/${target.entryId}?commit=${commit ? 1 : 0}`,
+        { method: "POST", headers: { "Content-Type": "text/csv" }, body: this._imp.text }
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        this._imp = null;
+        this._setMessage(this._importError(data), "error");
+        return;
+      }
+      if (!commit) {
+        this._imp.summary = data;
+        this._message = "";
+        return;
+      }
+      const t = this._t;
+      this._imp = null;
+      this._stats = {};
+      let text = t.imported.replace("%n%", data.added);
+      const st = data.statistics;
+      if (st && st.error) {
+        this._setMessage(`${t.importStatsError} ${st.error}`, "error");
+      } else {
+        if (st && st.imported_hours !== undefined) {
+          text += ` · ${t.importedStats.replace("%h%", st.imported_hours + (st.adjusted_hours || 0))}`;
+        }
+        this._setMessage(text, "ok");
+      }
+    } catch (err) {
+      this._setMessage((err && err.message) || String(err), "error");
+    } finally {
+      this._busy = false;
+      this._update();
+    }
+  }
+
+  _cancelImport() {
+    this._imp = null;
+    this._update();
+  }
+
+  _renderImport() {
+    const box = this.shadowRoot.querySelector(".import");
+    const imp = this._imp && this._imp.summary;
+    if (!imp) {
+      box.classList.add("hidden");
+      return;
+    }
+    const t = this._t;
+    const d = (iso) => new Date(iso).toLocaleDateString(this._lang);
+    const range = t.impRange
+      .replace("%from%", d(imp.from))
+      .replace("%to%", d(imp.to))
+      .replace("%a%", this._fmt(imp.first_value))
+      .replace("%b%", this._fmt(imp.last_value));
+    let html = `<p><b>${t.impFound}: ${imp.count}</b> — ${range}</p>
+      <p>${t.impTotal}: <b>${this._fmt(imp.total)} m³</b></p>
+      <p>${imp.sets_current ? t.impSetsCurrent : t.impKeepsCurrent}</p>
+      <p>${t.impEstimate}</p>`;
+    if (imp.decreases) html += `<p class="warn">${t.impDecreases} ${imp.decreases}</p>`;
+    if (imp.ignored_rows) html += `<p class="warn">${t.impIgnored} ${imp.ignored_rows}</p>`;
+    box.querySelector("#impTitle b").textContent = t.importTitle;
+    box.querySelector("#impBody").innerHTML = html;
+    box.querySelector("#impGo").textContent = t.import;
+    box.querySelector("#impGo").disabled = this._busy;
+    box.querySelector("#impCancel").textContent = t.cancel;
+    box.classList.remove("hidden");
   }
 
   _setMessage(text, kind) {

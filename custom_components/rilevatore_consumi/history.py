@@ -108,6 +108,20 @@ async def async_import_history(
             translation_key="no_history",
             translation_placeholders={"source": source_id},
         )
+    result = await async_write_history(hass, target_id, old_rows, name)
+    result["source"] = source_id
+    return result
+
+
+async def async_write_history(
+    hass: HomeAssistant,
+    target_id: str,
+    old_rows: list[dict[str, Any]],
+    name: str | None = None,
+) -> dict[str, Any]:
+    """Scrive old_rows come storico di target_id, prima di quello già presente."""
+    instance = get_instance(hass)
+    await instance.async_block_till_done()
     new_rows = await instance.async_add_executor_job(_fetch, hass, target_id)
     merged = merge_rows(old_rows, new_rows)
 
@@ -123,7 +137,6 @@ async def async_import_history(
     async_import_statistics(hass, metadata, merged)
     await instance.async_block_till_done()
     return {
-        "source": source_id,
         "target": target_id,
         "imported_hours": len(merged) - len(new_rows),
         "adjusted_hours": len(new_rows),

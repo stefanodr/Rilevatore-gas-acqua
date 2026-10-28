@@ -27,7 +27,7 @@ from .const import (
     VERSION,
 )
 from .meter import Meter
-from .views import PhotoView
+from .views import ImportView, PhotoView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
     frontend.add_extra_js_url(hass, f"{URL_BASE}/{CARD_FILE}?v={VERSION}")
     hass.http.register_view(PhotoView())
+    hass.http.register_view(ImportView())
     return True
 
 

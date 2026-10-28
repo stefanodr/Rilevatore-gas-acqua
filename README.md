@@ -44,6 +44,19 @@ title: Gas        # facoltativo
 
 La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
 
+Se vuoi, aggiungi `image: /local/mia-foto.png` per usare un'altra immagine del contatore, oppure `image: false` per nasconderla: di serie in alto a destra compare l'immagine del gas o dell'acqua.
+
+### Importare letture e storico da file
+
+Nella card, il pulsante **📁 File** carica un file CSV con le letture. Vengono accettati l'esportazione della cronologia di Home Assistant (`entity_id,state,last_changed`) e file semplici con data e lettura (`data;lettura`, con date ISO o `gg/mm/aaaa [hh:mm]`, separatore `,` `;` o tabulazione, decimali ignorati). Prima di scrivere qualsiasi cosa vedi un'**anteprima** (letture trovate, periodo, consumo complessivo, eventuali diminuzioni o righe ignorate) e confermi.
+
+Con l'importazione:
+- le letture entrano nell'elenco delle ultime letture e nei consumi di oggi/mese/anno;
+- la lettura attuale cambia solo se il file contiene una lettura più recente e non più bassa;
+- le statistiche del grafico vengono ricostruite ripartendo il consumo tra una lettura e l'altra (è una stima giorno per giorno; i totali restano esatti). Si riempie il periodo precedente ai dati già presenti, senza toccare quelli esistenti; ripetere l'importazione non duplica nulla.
+
+È il modo più semplice anche per caricare nuove letture in blocco o per portare lo storico dell'acqua e del gas su una nuova installazione.
+
 ### Se arrivi dalla v1.x (package YAML)
 
 Lo storico della plancia Energia è legato al **nome** del sensore (`sensor.gas_consumption`, `sensor.water_consumption`). Per non perderlo:
@@ -105,6 +118,19 @@ title: Gas        # optional
 ```
 
 The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
+
+Add `image: /local/my-photo.png` to use another picture of the meter, or `image: false` to hide it: by default a gas or water meter picture appears at the top right.
+
+### Importing readings and history from a file
+
+In the card, the **📁 File** button uploads a CSV file of readings. Accepted: the Home Assistant history export (`entity_id,state,last_changed`) and simple files with a date and a reading (`date;reading`, ISO dates or `dd/mm/yyyy [hh:mm]`, separator `,` `;` or tab, decimals ignored). Before anything is written you see a **preview** (readings found, period, total consumption, any decreases or ignored rows) and you confirm.
+
+On import:
+- readings go into the latest-readings list and into today / month / year consumption;
+- the current reading changes only if the file holds a newer, not lower reading;
+- chart statistics are rebuilt by spreading consumption between readings (a day-by-day estimate; totals stay exact). It fills the period before the data already present, without touching existing data; importing twice does not duplicate anything.
+
+It is also the easiest way to load new readings in bulk or to bring gas and water history into a fresh installation.
 
 ### Coming from v1.x (YAML package)
 

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-MAX_LOG = 60
+MAX_LOG = 400
 
 INSTRUCTIONS = {
     "gas": (
@@ -269,6 +269,65 @@ class Meter:
         self.log = [*self.log, self._log_item(new, now, replace)][-MAX_LOG:]
         await self._store.async_save(self._as_dict())
         self._notify()
+
+    # ------------------------------------------------------------------ storico da file
+    async def async_apply_history(
+        self, readings: list[tuple[datetime, int]]
+    ) -> dict[str, Any]:
+        """Unisce letture importate: elenco, consumi dei periodi e lettura attuale."""
+        now = dt_util.now()
+        known: dict[int, dict[str, Any]] = {}
+        for item in self.log:
+            when = dt_util.parse_datetime(item["t"])
+            if when is not None:
+                known[int(when.timestamp())] = item
+        added = 0
+        for when, value in readings:
+            key = int(when.timestamp())
+            if key not in known:
+                known[key] = self._log_item(value, dt_util.as_local(when))
+                added += 1
+        merged = [known[k] for k in sorted(known)]
+        self.log = merged[-MAX_LOG:]
+
+        points = [
+            (dt_util.parse_datetime(i["t"]), int(i["v"])) for i in merged
+        ]
+        points = [(t, v) for t, v in points if t is not None]
+
+        # Lettura attuale: solo se il file ne contiene una più recente e non più bassa
+        newest_time, newest_value = readings[-1]
+        reading_updated = False
+        if self.reading is None or (
+            (self.updated is None or newest_time > self.updated)
+            and newest_value >= self.reading
+        ):
+            self.previous = self.reading
+            self.reading = newest_value
+            self.updated = newest_time
+            reading_updated = True
+        self._roll(now)
+
+        # Consumi dei periodi in corso: la base è la lettura all'inizio del periodo
+        from .importer import value_at  # noqa: PLC0415
+
+        for period in PERIODS:
+            base = self.baselines.get(period)
+            if base is None or base.get("key") != _period_key(period, now):
+                continue
+            start = period_start(period, now)
+            if points and points[0][0] <= start and self.reading is not None:
+                at_start = round(value_at(points, start))
+                if at_start < int(base["value"]) and at_start <= self.reading:
+                    base["value"] = at_start
+
+        await self._store.async_save(self._as_dict())
+        self._notify()
+        return {
+            "added": added,
+            "log_size": len(self.log),
+            "reading_updated": reading_updated,
+        }
 
     # ------------------------------------------------------------------ foto / AI
     async def async_read_photo(self, content: bytes, content_type: str) -> dict[str, Any]:
