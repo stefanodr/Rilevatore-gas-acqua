@@ -138,6 +138,7 @@ async def test_commit_is_repeatable(
     resp = await _post(client, entry, commit=True)
     data = await resp.json()
     assert data["added"] == 0
+    assert data["statistics"] == {"skipped": "already_present"}  # non è un errore
     assert len(entry.runtime_data.log) == 49  # nessun duplicato
     assert len(await _rows(hass, SENSOR)) == first
 

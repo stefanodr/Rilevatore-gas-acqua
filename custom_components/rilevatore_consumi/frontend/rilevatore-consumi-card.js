@@ -52,6 +52,7 @@ const TEXTS = {
     import: "Importa",
     imported: "Importate %n% letture",
     importedStats: "storico ricostruito: %h% ore",
+    importStatsPresent: "lo storico dei grafici era già presente, nessuna modifica",
     importStatsError: "Letture importate, ma lo storico dei grafici non è stato scritto:",
     errEmpty: "Il file è vuoto.",
     errNoReadings: "Non ho trovato letture valide. Servono almeno una colonna con la data e una con il valore (per esempio data;lettura).",
@@ -106,6 +107,7 @@ const TEXTS = {
     import: "Import",
     imported: "Imported %n% readings",
     importedStats: "history rebuilt: %h% hours",
+    importStatsPresent: "the chart history was already there, nothing changed",
     importStatsError: "Readings imported, but the chart history was not written:",
     errEmpty: "The file is empty.",
     errNoReadings: "No valid readings found. A date column and a value column are needed (e.g. date;reading).",
@@ -645,7 +647,9 @@ class RilevatoreConsumiCard extends HTMLElement {
       if (st && st.error) {
         this._setMessage(`${t.importStatsError} ${st.error}`, "error");
       } else {
-        if (st && st.imported_hours !== undefined) {
+        if (st && st.skipped) {
+          text += ` · ${t.importStatsPresent}`;
+        } else if (st && st.imported_hours !== undefined) {
           text += ` · ${t.importedStats.replace("%h%", st.imported_hours + (st.adjusted_hours || 0))}`;
         }
         this._setMessage(text, "ok");

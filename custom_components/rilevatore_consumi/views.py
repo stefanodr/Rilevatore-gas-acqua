@@ -133,5 +133,9 @@ class ImportView(HomeAssistantView):
                     hass, total_id, hourly_rows(readings), entry.title
                 )
             except HomeAssistantError as err:
-                statistics = {"error": str(err)}
+                if getattr(err, "translation_key", None) == "nothing_to_import":
+                    # Lo storico dei grafici c'è già: non è un errore
+                    statistics = {"skipped": "already_present"}
+                else:
+                    statistics = {"error": str(err)}
         return self.json({**summary, **result, "committed": True, "statistics": statistics})
