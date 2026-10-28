@@ -42,7 +42,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(URL_BASE, str(Path(__file__).parent / "frontend"), False)]
     )
-    frontend.add_extra_js_url(hass, f"{URL_BASE}/{CARD_FILE}?v={VERSION}")
+    # Il numero cambia a ogni modifica del file: il browser non tiene la card vecchia
+    card = Path(__file__).parent / "frontend" / CARD_FILE
+    stamp = await hass.async_add_executor_job(lambda: int(card.stat().st_mtime))
+    frontend.add_extra_js_url(hass, f"{URL_BASE}/{CARD_FILE}?v={VERSION}-{stamp}")
     hass.http.register_view(PhotoView())
     hass.http.register_view(ImportView())
     return True
