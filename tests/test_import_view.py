@@ -199,3 +199,43 @@ async def test_single_reading_sets_year_start(
     year = hass.states.get("sensor.gas_consumption_this_year")
     assert year.state == "51"
     assert year.attributes["partial"] is False  # ora l'inizio anno è noto
+
+
+async def test_water_scenario_history_then_january_row(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Storico solo da marzo copiato dal vecchio sensore, poi lettura al 1/1."""
+    from datetime import timedelta
+
+    from homeassistant.components.recorder.models import StatisticMeanType
+    from homeassistant.components.recorder.statistics import async_import_statistics
+
+    entry = await _setup(hass, clock, reading=368)
+    start = dt_util.as_utc(dt_util.parse_datetime("2026-03-01T00:00:00+01:00"))
+    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    rows, hour = [], start
+    while hour < now:
+        state = 361 + int((hour - start).total_seconds() // 3600 // 24 // 30 * 1)
+        rows.append({"start": hour, "state": float(min(state, 368)),
+                     "sum": float(min(state, 368) - 361)})
+        hour += timedelta(hours=1)
+    meta = {"has_sum": True, "mean_type": StatisticMeanType.NONE, "name": None,
+            "source": "recorder", "statistic_id": "sensor.vecchia_acqua",
+            "unit_class": "volume", "unit_of_measurement": "m³"}
+    async_import_statistics(hass, meta, rows)
+    await async_wait_recording_done(hass)
+
+    await hass.services.async_call(
+        "rilevatore_consumi", "import_history", {"source": "sensor.vecchia_acqua"},
+        target={"entity_id": SENSOR}, blocking=True, return_response=True,
+    )
+    await hass.async_block_till_done()
+    year = hass.states.get("sensor.gas_consumption_this_year")
+
+    client = await hass_client()
+    body = b"data;lettura\n01/01/2026;351\n"
+    resp = await _post(client, entry, body, commit=True)
+    assert (await resp.json())["committed"] is True
+    year = hass.states.get("sensor.gas_consumption_this_year")
+    assert year.state == "17"
+    assert year.attributes["partial"] is False
