@@ -181,3 +181,19 @@ async def test_requires_auth(
     entry = await _setup(hass, clock)
     client = await hass_client_no_auth()
     assert (await _post(client, entry)).status == 401
+
+
+async def test_single_reading_sets_year_start(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Una sola riga al 1/1 basta per far tornare il consumo dell'anno."""
+    entry = await _setup(hass, clock, reading=365)
+    client = await hass_client()
+    body = b"data;lettura\n01/01/2026;314\n"
+    data = await (await _post(client, entry, body)).json()
+    assert data["count"] == 1
+    assert data["sets_current"] is False
+    data = await (await _post(client, entry, body, commit=True)).json()
+    assert data["committed"] is True
+    assert hass.states.get(SENSOR).state == "365"  # la lettura attuale non cambia
+    assert hass.states.get("sensor.gas_consumption_this_year").state == "51"
