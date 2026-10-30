@@ -57,4 +57,6 @@ class RilevatoreEntity(Entity):
         """Servizio import_history: porta qui lo storico di un vecchio sensore."""
         from .history import async_import_history  # noqa: PLC0415
 
-        return await async_import_history(self.hass, self.entity_id, source)
+        result = await async_import_history(self.hass, self.entity_id, source)
+        await self.meter.async_refine_baselines()
+        return result

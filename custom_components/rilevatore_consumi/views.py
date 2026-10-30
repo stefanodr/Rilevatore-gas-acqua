@@ -138,4 +138,5 @@ class ImportView(HomeAssistantView):
                     statistics = {"skipped": "already_present"}
                 else:
                     statistics = {"error": str(err)}
+            await meter.async_refine_baselines()
         return self.json({**summary, **result, "committed": True, "statistics": statistics})

@@ -11,7 +11,7 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er, selector
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -157,12 +157,24 @@ class Meter:
         """Avvia il controllo del cambio periodo a mezzanotte."""
 
         @callback
-        def _midnight(_now: datetime) -> None:
-            if self._roll(dt_util.now()):
+        def _check(_now: datetime) -> None:
+            if self._roll(dt_util.now(), exact=True):
                 self._store.async_delay_save(self._as_dict, 1)
-            self._notify()
+            self._notify()  # riscrive gli stati: Home Assistant ignora quelli uguali
 
-        return async_track_time_change(self.hass, _midnight, hour=0, minute=0, second=1)
+        # A mezzanotte, e ogni ora come rete di sicurezza (PC o Docker fermi a
+        # mezzanotte, sospensione): il cambio giorno non resta mai indietro.
+        stop_midnight = async_track_time_change(
+            self.hass, _check, hour=0, minute=0, second=1
+        )
+        stop_hourly = async_track_time_change(self.hass, _check, minute=0, second=5)
+
+        @callback
+        def _stop() -> None:
+            stop_midnight()
+            stop_hourly()
+
+        return _stop
 
     # ------------------------------------------------------------------ ascoltatori
     @callback
@@ -183,8 +195,13 @@ class Meter:
             listener()
 
     # ------------------------------------------------------------------ periodi
-    def _roll(self, now: datetime) -> bool:
-        """Aggiorna le basi di calcolo se è cambiato un periodo."""
+    def _roll(self, now: datetime, exact: bool = False) -> bool:
+        """Aggiorna le basi di calcolo se è cambiato un periodo.
+
+        exact=True solo al cambio di giorno a mezzanotte: la lettura di quel momento
+        è davvero quella di inizio periodo. Negli altri casi la base è provvisoria
+        e viene rifinita dallo storico (async_refine_baselines).
+        """
         if self.reading is None:
             return False
         changed = False
@@ -192,14 +209,24 @@ class Meter:
             key = _period_key(period, now)
             base = self.baselines.get(period)
             if base is None or base.get("key") != key:
-                self.baselines[period] = {"key": key, "value": self.reading}
+                self.baselines[period] = {
+                    "key": key,
+                    "value": self.reading,
+                    "exact": exact,
+                }
                 changed = True
         return changed
 
     def consumption(self, period: str) -> int | None:
         """Consumo nel periodo corrente in m³."""
+        if self.reading is None:
+            return None
+        # Se il periodo è cambiato e nessuno se n'è accorto, la lettura non è
+        # cambiata dall'inizio del nuovo periodo: la base è la lettura attuale.
+        if self._roll(dt_util.now(), exact=True):
+            self._store.async_delay_save(self._as_dict, 1)
         base = self.baselines.get(period)
-        if self.reading is None or base is None:
+        if base is None:
             return None
         return max(self.reading - int(base["value"]), 0)
 
@@ -263,6 +290,7 @@ class Meter:
             for period in PERIODS:
                 done = self.consumption(period) or 0
                 self.baselines[period]["value"] = new - done
+                self.baselines[period]["exact"] = True
         self.previous = current
         self.reading = new
         self.updated = now
@@ -320,6 +348,7 @@ class Meter:
                 at_start = round(value_at(points, start))
                 if at_start < int(base["value"]) and at_start <= self.reading:
                     base["value"] = at_start
+                    base["exact"] = True
 
         await self._store.async_save(self._as_dict())
         self._notify()
@@ -328,6 +357,53 @@ class Meter:
             "log_size": len(self.log),
             "reading_updated": reading_updated,
         }
+
+    async def async_refine_baselines(self) -> bool:
+        """Calcola dallo storico la lettura a inizio giorno/mese/anno.
+
+        Senza questo i consumi di mese e anno ripartirebbero dal momento in cui
+        l'integrazione è stata installata. Si usano le statistiche a lungo termine
+        del sensore (anche quelle importate da un vecchio sensore o da un file).
+        """
+        if self.reading is None or "recorder" not in self.hass.config.components:
+            return False
+        registry = er.async_get(self.hass)
+        total_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{self.entry.entry_id}_total"
+        )
+        if total_id is None:
+            return False
+        now = dt_util.now()
+        pending = [
+            period
+            for period in PERIODS
+            if (base := self.baselines.get(period)) is not None
+            and base.get("key") == _period_key(period, now)
+            and not base.get("exact")
+        ]
+        if not pending:
+            return False
+
+        from .history import async_state_at  # noqa: PLC0415
+
+        changed = False
+        for period in pending:
+            value = await async_state_at(
+                self.hass, total_id, period_start(period, now)
+            )
+            if value is None:
+                continue
+            at_start = round(value)
+            base = self.baselines[period]
+            # La base provvisoria non può essere più bassa del vero inizio periodo
+            if at_start <= self.reading and at_start <= int(base["value"]):
+                base["value"] = at_start
+                base["exact"] = True
+                changed = True
+        if changed:
+            await self._store.async_save(self._as_dict())
+            self._notify()
+        return changed
 
     # ------------------------------------------------------------------ foto / AI
     async def async_read_photo(self, content: bytes, content_type: str) -> dict[str, Any]:

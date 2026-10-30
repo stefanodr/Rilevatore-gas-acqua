@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.components.recorder import get_instance
@@ -142,3 +142,37 @@ async def async_write_history(
         "adjusted_hours": len(new_rows),
         "from": _ts(merged[0]["start"]).isoformat(),
     }
+
+
+def _state_before(
+    hass: HomeAssistant, statistic_id: str, when: datetime
+) -> float | None:
+    """Lettura a fine dell'ora che precede `when` (thread del recorder)."""
+    result = statistics_during_period(
+        hass,
+        when - timedelta(hours=2),
+        when,
+        {statistic_id},
+        "hour",
+        None,
+        {"state"},
+    )
+    rows = [
+        row
+        for row in result.get(statistic_id, [])
+        if row.get("state") is not None and _ts(row["start"]) < dt_util.as_utc(when)
+    ]
+    if not rows:
+        return None
+    return float(max(rows, key=lambda r: _ts(r["start"]))["state"])
+
+
+async def async_state_at(
+    hass: HomeAssistant, statistic_id: str, when: datetime
+) -> float | None:
+    """Lettura del sensore a un certo istante, dalle statistiche (o None)."""
+    instance = get_instance(hass)
+    await instance.async_block_till_done()
+    return await instance.async_add_executor_job(
+        _state_before, hass, statistic_id, when
+    )

@@ -15,6 +15,7 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
@@ -59,6 +60,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: RilevatoreConfigEntry) -
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(meter.async_start())
+
+    async def _refine(_hass: HomeAssistant) -> None:
+        await meter.async_refine_baselines()
+
+    # Quando il recorder è pronto: mese e anno partono dalla lettura storica
+    if (cancel := async_at_started(hass, _refine)) is not None:
+        entry.async_on_unload(cancel)
     _async_adopt_entity_id(hass, entry)
     _async_sync_device_name(hass, entry)
     entry.async_on_unload(entry.add_update_listener(_async_title_changed))

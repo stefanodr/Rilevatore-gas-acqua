@@ -18,6 +18,7 @@ Da pacchetto YAML a **integrazione personalizzata** (`rilevatore_consumi`), inst
 - Controlli: lettura più bassa rifiutata (a meno di sostituzione contatore), aumento anomalo da confermare.
 - Card Lovelace inclusa (`custom:rilevatore-consumi-card`, `meter: gas` o `water`), registrata automaticamente: lettura, consumi di oggi/mese/anno, grafico a barre su 30 giorni, 12 mesi e 5 anni con totale e media, ultime letture, inserimento a mano o da foto.
 - **Importa da file**: dalla card, CSV (esportazione cronologia HA o `data;lettura`) con anteprima e conferma; ricostruisce lo storico dei grafici. Immagine del contatore in alto a destra (modificabile con `image:`).
+- Consumi di oggi/mese/anno calcolati dallo storico (non dall'installazione) e aggiornati anche se l'istanza era ferma a mezzanotte.
 - **Storico**: servizio `import_history` e opzione "sensore di cui prendere il nome" per riprendere le statistiche del vecchio sensore della v1.x.
 - Opzione "sensore esistente": il nuovo sensore prende il nome (es. `sensor.gas_consumption`) e quindi lo **storico** del sensore della v1.x.
 - Traduzioni italiano e inglese. Tutta la logica è coperta da test automatici.
@@ -49,6 +50,7 @@ From YAML package to a **custom integration** (`rilevatore_consumi`), installabl
 - Safety checks: a lower reading is rejected (unless the meter was replaced), an unusual jump must be confirmed.
 - Bundled Lovelace card (`custom:rilevatore-consumi-card`, `meter: gas` or `water`), registered automatically: reading, today/month/year consumption, bar chart over 30 days, 12 months and 5 years with total and average, latest readings, manual or photo entry.
 - **Import from file**: from the card, CSV (HA history export or `date;reading`) with preview and confirmation; rebuilds the chart history. Meter picture at the top right (configurable with `image:`).
+- Today / month / year consumption computed from history (not from installation time) and refreshed even if the instance was down at midnight.
 - **History**: `import_history` service and a "sensor whose name to take over" option to pick up the statistics of the old v1.x sensor.
 - "Existing sensor" option: the new sensor takes over its name (e.g. `sensor.gas_consumption`) and therefore the **history** of the v1.x sensor.
 - Italian and English translations. All logic is covered by automated tests.
