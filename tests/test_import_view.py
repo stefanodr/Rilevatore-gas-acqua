@@ -196,4 +196,6 @@ async def test_single_reading_sets_year_start(
     data = await (await _post(client, entry, body, commit=True)).json()
     assert data["committed"] is True
     assert hass.states.get(SENSOR).state == "365"  # la lettura attuale non cambia
-    assert hass.states.get("sensor.gas_consumption_this_year").state == "51"
+    year = hass.states.get("sensor.gas_consumption_this_year")
+    assert year.state == "51"
+    assert year.attributes["partial"] is False  # ora l'inizio anno è noto

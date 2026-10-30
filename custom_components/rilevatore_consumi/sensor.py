@@ -137,6 +137,7 @@ class PeriodSensor(RilevatoreEntity, SensorEntity):
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfVolume.CUBIC_METERS
     _attr_suggested_display_precision = 0
+    _unrecorded_attributes = frozenset({"partial"})
 
     def __init__(self, meter: Meter, period: str) -> None:
         """Inizializza il sensore di periodo."""
@@ -159,3 +160,8 @@ class PeriodSensor(RilevatoreEntity, SensorEntity):
     def last_reset(self) -> datetime:
         """Inizio del periodo corrente."""
         return self.meter.last_reset(self._period)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """partial: manca la lettura di inizio periodo, il consumo conta da dopo."""
+        return {"partial": not self.meter.is_exact(self._period)}

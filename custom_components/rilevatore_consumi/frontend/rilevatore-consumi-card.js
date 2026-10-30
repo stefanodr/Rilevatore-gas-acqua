@@ -16,7 +16,11 @@ const TEXTS = {
     months: "Mesi",
     years: "Anni",
     total: "Totale",
+    totalDays: "Totale ultimi 30 giorni",
+    totalMonths: "Totale ultimi 12 mesi",
+    totalYears: "Totale ultimi 5 anni",
     average: "Media",
+    partial: "parziale",
     perDay: "al giorno",
     perMonth: "al mese",
     perYear: "all'anno",
@@ -71,7 +75,11 @@ const TEXTS = {
     months: "Months",
     years: "Years",
     total: "Total",
+    totalDays: "Total last 30 days",
+    totalMonths: "Total last 12 months",
+    totalYears: "Total last 5 years",
     average: "Average",
+    partial: "partial",
     perDay: "per day",
     perMonth: "per month",
     perYear: "per year",
@@ -320,14 +328,18 @@ class RilevatoreConsumiCard extends HTMLElement {
       const n = s ? Number(s.state) : NaN;
       return Number.isNaN(n) ? null : n;
     };
+    const part = (key) => {
+      const s = attrs[key] ? this._hass.states[attrs[key]] : undefined;
+      return !!(s && s.attributes && s.attributes.partial);
+    };
     this._cur = { days: sib("day_entity"), months: sib("month_entity"), years: sib("year_entity") };
     const tile = (v) => (v === null ? "—" : `${this._fmt(v)} m³`);
     $("#vDay").textContent = tile(this._cur.days);
     $("#vMonth").textContent = tile(this._cur.months);
     $("#vYear").textContent = tile(this._cur.years);
     $("#lDay").textContent = t.today;
-    $("#lMonth").textContent = t.month;
-    $("#lYear").textContent = t.year;
+    $("#lMonth").textContent = t.month + (part("month_entity") ? ` (${t.partial})` : "");
+    $("#lYear").textContent = t.year + (part("year_entity") ? ` (${t.partial})` : "");
     $("#hReadings").textContent = t.readings;
 
     this._renderImage(attrs);
@@ -444,7 +456,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     for (const b of out) {
       b.value = Math.max(0, Math.round((byKey[b.key] || 0) * 10) / 10);
       if (b.now && this._cur && this._cur[tab] !== null && this._cur[tab] !== undefined) {
-        b.value = this._cur[tab]; // il periodo in corso si prende dal sensore (esatto)
+        b.value = Math.max(b.value, this._cur[tab]); // periodo in corso: sensore o statistiche, il più alto
       }
     }
     return out;
@@ -513,7 +525,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     const used = buckets.slice(first);
     const avg = total / used.length;
     const unit = { days: t.perDay, months: t.perMonth, years: t.perYear }[this._tab];
-    summary.innerHTML = `<span>${t.total}: <b>${this._fmt(total)} m³</b></span><span>${t.average}: <b>${this._fmt(avg)} m³</b> ${unit}</span>`;
+    const totalLabel = { days: t.totalDays, months: t.totalMonths, years: t.totalYears }[this._tab];
+    summary.innerHTML = `<span>${totalLabel}: <b>${this._fmt(total)} m³</b></span><span>${t.average}: <b>${this._fmt(avg)} m³</b> ${unit}</span>`;
   }
 
   // ---------------------------------------------------------------- ultime letture

@@ -230,6 +230,11 @@ class Meter:
             return None
         return max(self.reading - int(base["value"]), 0)
 
+    def is_exact(self, period: str) -> bool:
+        """True se la base del periodo è la lettura vera di inizio periodo."""
+        base = self.baselines.get(period)
+        return bool(base and base.get("exact"))
+
     def last_reset(self, period: str) -> datetime:
         """Inizio del periodo corrente."""
         return period_start(period, dt_util.now())

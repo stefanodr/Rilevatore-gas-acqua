@@ -114,3 +114,17 @@ async def test_day_rolls_over_even_if_midnight_was_missed(
     await hass.async_block_till_done()
     assert hass.states.get("sensor.gas_consumption_today").state == "0"
     assert hass.states.get("sensor.gas_consumption_this_month").state == "1"
+
+
+async def test_partial_flag_until_history_is_known(
+    recorder_mock: Recorder, hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Senza storico mese e anno sono "parziali"; dopo l'import dal file, no."""
+    await hass.config.async_set_time_zone("Europe/Rome")
+    freezer.move_to("2026-10-30 08:00:00+01:00")
+    entry = make_entry(365)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.gas_consumption_this_year").attributes["partial"] is True
+    assert hass.states.get("sensor.gas_consumption_this_month").attributes["partial"] is True
