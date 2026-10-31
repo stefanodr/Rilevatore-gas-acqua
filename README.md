@@ -7,7 +7,7 @@
 <a id="italiano"></a>
 ## 🇮🇹 Italiano
 
-Integrazione per Home Assistant per registrare la lettura del **contatore del gas** e dell'**acqua** (m³ interi), vederla nella **plancia Energia** e calcolare i consumi di oggi, del mese e dell'anno. Pensata per chi non può installare sensori vicino ai contatori: la lettura si inserisce **a mano**,**da foto**. oppure **da CSV**.
+Integrazione per Home Assistant per registrare la lettura del **contatore del gas** e dell'**acqua** (m³ interi), vederla nella **plancia Energia** e calcolare i consumi di oggi, del mese e dell'anno. Pensata per chi non può installare sensori vicino ai contatori: la lettura si inserisce **a mano** ,**da foto**, oppure **da CSV**.
 
 Richiede Home Assistant **2025.10 o successivo**.
 
