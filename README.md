@@ -89,7 +89,7 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 <a id="english"></a>
 ## 🇬🇧 English
 
-Home Assistant integration to record the **gas** and **water meter** reading (whole m³), show it in the **Energy dashboard** and compute today / month / year consumption. Built for meters where no sensor can be installed: enter the reading **by hand** or **from a photo**.
+Home Assistant integration to record the **gas** and **water meter** reading (whole m³), show it in the **Energy dashboard** and compute today / month / year consumption. Built for meters where no sensor can be installed: enter the reading **by hand** or **by photo**, or **from CSV**.
 
 Requires Home Assistant **2025.10 or later**.
 
