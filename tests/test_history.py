@@ -19,7 +19,7 @@ from pytest_homeassistant_custom_component.components.recorder.common import (
 )
 
 from custom_components.rilevatore_consumi.const import DOMAIN
-from custom_components.rilevatore_consumi.history import merge_rows
+from custom_components.rilevatore_consumi.history import merge_rows, rebuild_sums
 
 from .conftest import make_entry
 
@@ -68,23 +68,54 @@ def _hours(first, values: list[tuple[float, float]]) -> list[dict]:
     ]
 
 
-def test_merge_shifts_new_rows() -> None:
-    """Le righe nuove proseguono la somma del vecchio sensore."""
+def test_merge_keeps_existing_rows_untouched() -> None:
+    """Le righe già presenti non cambiano; si spostano quelle importate."""
     t0 = dt_util.utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(hours=10)
     old = _hours(t0, [(5700.0, 10.0), (5710.0, 20.0), (5720.0, 30.0)])
     new = _hours(t0 + timedelta(hours=5), [(5726.0, 0.0), (5728.0, 2.0)])
     merged = merge_rows(old, new)
-    assert [round(m["sum"], 3) for m in merged] == [10, 20, 30, 36, 38]
+    # le righe esistenti sono identiche: il recorder prosegue da lì
+    assert [round(m["sum"], 3) for m in merged[-2:]] == [0, 2]
+    # le importate arrivano senza salti: +10 +10 e poi 6 m³ di lettura tra 5720 e 5726
+    sums = [round(m["sum"], 3) for m in merged]
+    assert [b - a for a, b in zip(sums, sums[1:])] == [10, 10, 6, 2]
     assert [m["state"] for m in merged] == [5700, 5710, 5720, 5726, 5728]
 
 
 def test_merge_meter_replaced_not_added() -> None:
-    """Se la lettura nuova è più bassa (contatore sostituito) il salto non si somma."""
+    """Se la lettura esistente è più bassa (contatore sostituito) il salto non si somma."""
     t0 = dt_util.utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(hours=10)
     old = _hours(t0, [(5700.0, 10.0)])
     new = _hours(t0 + timedelta(hours=3), [(10.0, 0.0), (12.0, 2.0)])
     merged = merge_rows(old, new)
-    assert [round(m["sum"], 3) for m in merged] == [10, 10, 12]
+    sums = [round(m["sum"], 3) for m in merged]
+    assert sums[-2:] == [0, 2]
+    assert sums[0] == sums[1]  # nessun consumo tra 5700 e 10
+
+
+def test_rebuild_sums_removes_drop() -> None:
+    """Somma ricaduta a un'ora (barra negativa): si ricalcola dalle letture."""
+    t0 = dt_util.utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(hours=10)
+    # 5 ore con somma gonfiata (+400), poi le righe vive ripartono dalla somma vera
+    rows = _hours(
+        t0,
+        [(5000.0, 400.0), (5010.0, 410.0), (5020.0, 420.0), (5030.0, 430.0),
+         (5040.0, 440.0), (5045.0, 45.0), (5050.0, 50.0)],
+    )
+    fixed = rebuild_sums(rows)
+    sums = [m["sum"] for m in fixed]
+    assert sums[-2:] == [45.0, 50.0]  # la riga più recente resta il riferimento
+    gains = [round(b - a, 3) for a, b in zip(sums, sums[1:])]
+    assert gains == [10, 10, 10, 10, 5, 5]
+    assert all(g >= 0 for g in gains)
+
+
+def test_rebuild_sums_meter_replaced() -> None:
+    """Un calo di lettura (contatore sostituito) non conta come consumo."""
+    t0 = dt_util.utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(hours=10)
+    rows = _hours(t0, [(5700.0, 100.0), (5710.0, 110.0), (3.0, 110.0), (5.0, 112.0)])
+    sums = [m["sum"] for m in rebuild_sums(rows)]
+    assert [round(b - a, 3) for a, b in zip(sums, sums[1:])] == [10, 0, 2]
 
 
 def test_merge_ignores_overlap_and_empty() -> None:
@@ -150,10 +181,10 @@ async def test_service_errors(recorder_mock: Recorder, hass: HomeAssistant) -> N
             )
 
 
-async def test_service_shifts_existing_new_stats(
+async def test_service_keeps_existing_rows(
     recorder_mock: Recorder, hass: HomeAssistant
 ) -> None:
-    """Le ore già registrate dal sensore nuovo (ripartite da 0) proseguono il vecchio."""
+    """Le ore già registrate dal sensore nuovo restano com'erano; si sposta il vecchio storico."""
     now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
     t0 = now - timedelta(days=10)
     old = [
@@ -177,7 +208,47 @@ async def test_service_shifts_existing_new_stats(
     rows = await _rows(hass, NEW)
     sums = [r["sum"] for r in rows]
     assert sums == sorted(sums)  # mai un calo: la serie è continua
-    assert sums[47] == 47.0
-    # 47 (ultima vecchia) + salto di lettura 5060-5047=13 + incremento locale
-    assert sums[48] == 47.0 + 13.0
-    assert sums[52] == 47.0 + 13.0 + 4.0
+    # le 5 righe esistenti sono identiche a prima (0, 1, 2, 3, 4)
+    assert sums[-5:] == [0.0, 1.0, 2.0, 3.0, 4.0]
+    # tra l'ultima ora vecchia (5047) e la prima esistente (5060) ci sono 13 m³
+    assert sums[-5] - sums[47] == 13.0
+    # le vecchie mantengono i loro incrementi
+    assert sums[47] - sums[0] == 47.0
+
+
+async def test_repair_service_fixes_negative_bar(
+    recorder_mock: Recorder, hass: HomeAssistant
+) -> None:
+    """Il tuo caso: righe importate con somma più alta delle righe vive."""
+    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    t0 = now - timedelta(days=20)
+    rows = []
+    for i in range(0, 24 * 15):  # importate, somma gonfiata di 400
+        rows.append({"start": t0 + timedelta(hours=i), "state": 5000.0 + i / 10,
+                     "sum": 400.0 + i / 10})
+    base = 5000.0 + (24 * 15) / 10
+    for j in range(0, 24 * 4):  # vive: ripartono dalla somma vera
+        rows.append({"start": t0 + timedelta(hours=24 * 15 + j),
+                     "state": base + j / 10, "sum": 20.0 + j / 10})
+    async_import_statistics(hass, _meta(NEW), rows)
+    await async_wait_recording_done(hass)
+    await _setup(hass)
+
+    before = await _rows(hass, NEW)
+    assert min(b["sum"] - a["sum"] for a, b in zip(before, before[1:])) < -300
+
+    response = await hass.services.async_call(
+        DOMAIN, "repair_statistics", {},
+        target={"entity_id": NEW}, blocking=True, return_response=True,
+    )
+    assert response[NEW]["hours_fixed"] == 24 * 15
+    after = await _rows(hass, NEW)
+    gains = [b["sum"] - a["sum"] for a, b in zip(after, after[1:])]
+    assert min(gains) >= -1e-6
+    assert round(after[-1]["sum"], 3) == round(rows[-1]["sum"], 3)  # riferimento intatto
+
+    again = await hass.services.async_call(
+        DOMAIN, "repair_statistics", {},
+        target={"entity_id": NEW}, blocking=True, return_response=True,
+    )
+    assert again[NEW]["hours_fixed"] == 0  # ripetibile

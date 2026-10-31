@@ -60,3 +60,9 @@ class RilevatoreEntity(Entity):
         result = await async_import_history(self.hass, self.entity_id, source)
         await self.meter.async_refine_baselines()
         return result
+
+    async def async_service_repair_statistics(self) -> ServiceResponse:
+        """Servizio repair_statistics: toglie i salti nelle somme dello storico."""
+        from .history import async_repair_sums  # noqa: PLC0415
+
+        return await async_repair_sums(self.hass, self.entity_id, self.meter.entry.title)

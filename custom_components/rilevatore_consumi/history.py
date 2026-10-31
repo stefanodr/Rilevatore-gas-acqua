@@ -45,15 +45,27 @@ def _fetch(hass: HomeAssistant, statistic_id: str) -> list[dict[str, Any]]:
     ]
 
 
+def _item(row: dict[str, Any], sum_value: float) -> StatisticData:
+    item = StatisticData(
+        start=_ts(row["start"]), state=row["state"], sum=round(sum_value, 3)
+    )
+    if row.get("last_reset") is not None:
+        item["last_reset"] = _ts(row["last_reset"])
+    return item
+
+
 def merge_rows(
     old_rows: list[dict[str, Any]], new_rows: list[dict[str, Any]]
 ) -> list[StatisticData]:
-    """Unisce lo storico vecchio e quello nuovo in un'unica serie continua.
+    """Unisce lo storico importato con quello già presente in un'unica serie continua.
 
-    Le righe vecchie restano com'erano. Quelle nuove, che ripartivano da zero,
-    vengono traslate in modo che la somma prosegua da dove finiva il vecchio
-    sensore (il consumo tra l'ultima lettura vecchia e la prima nuova si somma;
-    se il contatore è stato sostituito, cioè la lettura cala, non si somma).
+    Le righe già presenti NON si toccano: il recorder continua a produrre quelle
+    nuove a partire dalle proprie statistiche a 5 minuti, quindi la loro somma
+    non deve cambiare, altrimenti alla prima ora nuova la somma ricadrebbe e la
+    plancia Energia mostrerebbe un consumo negativo. Si spostano invece le righe
+    importate (precedenti), in modo che la somma arrivi senza salti alla prima
+    riga esistente. Il consumo tra l'ultima lettura importata e la prima
+    esistente si somma; se la lettura cala (contatore sostituito) non si somma.
     """
     cutoff = _ts(new_rows[0]["start"]) if new_rows else None
     kept = [row for row in old_rows if cutoff is None or _ts(row["start"]) < cutoff]
@@ -62,33 +74,68 @@ def merge_rows(
             translation_domain=DOMAIN, translation_key="nothing_to_import"
         )
 
-    merged: list[StatisticData] = []
-    for row in kept:
-        item = StatisticData(
-            start=_ts(row["start"]), state=row["state"], sum=row["sum"]
-        )
-        if row.get("last_reset") is not None:
-            item["last_reset"] = _ts(row["last_reset"])
-        merged.append(item)
-
+    delta = 0.0
     if new_rows:
         last = kept[-1]
         first_new = new_rows[0]
-        offset = (
-            last["sum"]
-            + max(0.0, first_new["state"] - last["state"])
-            - first_new["sum"]
-        )
-        for row in new_rows:
-            item = StatisticData(
-                start=_ts(row["start"]),
-                state=row["state"],
-                sum=row["sum"] + offset,
-            )
-            if row.get("last_reset") is not None:
-                item["last_reset"] = _ts(row["last_reset"])
-            merged.append(item)
+        gap = max(0.0, first_new["state"] - last["state"])
+        delta = first_new["sum"] - (last["sum"] + gap)
+
+    merged = [_item(row, row["sum"] + delta) for row in kept]
+    merged.extend(_item(row, row["sum"]) for row in new_rows)
     return merged
+
+
+def rebuild_sums(rows: list[dict[str, Any]]) -> list[StatisticData]:
+    """Ricalcola le somme dalle letture, partendo dalla riga più recente.
+
+    La riga più recente è quella che il recorder sta già continuando: la si
+    tiene com'è e si risale all'indietro. Ogni ora precedente vale la successiva
+    meno l'aumento di lettura tra le due (un calo, cioè un contatore sostituito,
+    non conta).
+    """
+    result: list[StatisticData] = [None] * len(rows)  # type: ignore[list-item]
+    current = float(rows[-1]["sum"])
+    result[-1] = _item(rows[-1], current)
+    for i in range(len(rows) - 2, -1, -1):
+        current -= max(0.0, rows[i + 1]["state"] - rows[i]["state"])
+        result[i] = _item(rows[i], current)
+    return result
+
+
+async def async_repair_sums(
+    hass: HomeAssistant, target_id: str, name: str | None = None
+) -> dict[str, Any]:
+    """Rimette in continuità le somme dello storico di target_id."""
+    instance = get_instance(hass)
+    await instance.async_block_till_done()
+    rows = await instance.async_add_executor_job(_fetch, hass, target_id)
+    if not rows:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="no_history",
+            translation_placeholders={"source": target_id},
+        )
+    fixed = rebuild_sums(rows)
+    changed = sum(
+        1 for old, new in zip(rows, fixed) if abs(float(old["sum"]) - new["sum"]) > 0.01
+    )
+    if changed:
+        async_import_statistics(hass, _metadata(target_id, name), fixed)
+        await instance.async_block_till_done()
+    return {"target": target_id, "hours": len(rows), "hours_fixed": changed}
+
+
+def _metadata(target_id: str, name: str | None) -> StatisticMetaData:
+    return StatisticMetaData(
+        has_sum=True,
+        mean_type=StatisticMeanType.NONE,
+        name=name,
+        source="recorder",
+        statistic_id=target_id,
+        unit_class=VolumeConverter.UNIT_CLASS,
+        unit_of_measurement="m³",
+    )
 
 
 async def async_import_history(
@@ -125,15 +172,7 @@ async def async_write_history(
     new_rows = await instance.async_add_executor_job(_fetch, hass, target_id)
     merged = merge_rows(old_rows, new_rows)
 
-    metadata = StatisticMetaData(
-        has_sum=True,
-        mean_type=StatisticMeanType.NONE,
-        name=name,
-        source="recorder",
-        statistic_id=target_id,
-        unit_class=VolumeConverter.UNIT_CLASS,
-        unit_of_measurement="m³",
-    )
+    metadata = _metadata(target_id, name)
     async_import_statistics(hass, metadata, merged)
     await instance.async_block_till_done()
     return {

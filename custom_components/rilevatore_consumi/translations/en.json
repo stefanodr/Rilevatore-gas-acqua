@@ -119,6 +119,10 @@
           "description": "ID of the old sensor, for example sensor.gas_consumption."
         }
       }
+    },
+    "repair_statistics": {
+      "name": "Repair statistics",
+      "description": "Removes jumps in the history sums (for example negative bars in the Energy dashboard after an import). Re-reads the stored readings and recomputes the sums starting from the most recent hour. Safe to repeat."
     }
   },
   "exceptions": {

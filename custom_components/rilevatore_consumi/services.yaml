@@ -47,3 +47,9 @@ import_history:
       example: sensor.gas_consumption
       selector:
         text:
+
+repair_statistics:
+  target:
+    entity:
+      integration: rilevatore_consumi
+      domain: sensor

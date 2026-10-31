@@ -73,6 +73,12 @@ async def async_setup_entry(
         supports_response=SupportsResponse.OPTIONAL,
     )
     platform.async_register_entity_service(
+        "repair_statistics",
+        None,
+        "async_service_repair_statistics",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    platform.async_register_entity_service(
         "read_from_photo",
         {vol.Required(ATTR_MEDIA): selector.MediaSelector()},
         "async_service_read_from_photo",

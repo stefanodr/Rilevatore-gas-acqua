@@ -1,16 +1,39 @@
 {
   "entity": {
     "sensor": {
-      "total": {"default": "mdi:counter"},
-      "consumption_day": {"default": "mdi:calendar-today"},
-      "consumption_month": {"default": "mdi:calendar-month"},
-      "consumption_year": {"default": "mdi:calendar"}
+      "total": {
+        "default": "mdi:counter"
+      },
+      "consumption_day": {
+        "default": "mdi:calendar-today"
+      },
+      "consumption_month": {
+        "default": "mdi:calendar-month"
+      },
+      "consumption_year": {
+        "default": "mdi:calendar"
+      }
     },
-    "number": {"new_reading": {"default": "mdi:pencil"}},
-    "image": {"last_photo": {"default": "mdi:camera"}}
+    "number": {
+      "new_reading": {
+        "default": "mdi:pencil"
+      }
+    },
+    "image": {
+      "last_photo": {
+        "default": "mdi:camera"
+      }
+    }
   },
   "services": {
-    "set_reading": {"service": "mdi:counter"},
-    "read_from_photo": {"service": "mdi:camera"}
+    "set_reading": {
+      "service": "mdi:counter"
+    },
+    "read_from_photo": {
+      "service": "mdi:camera"
+    },
+    "repair_statistics": {
+      "service": "mdi:wrench"
+    }
   }
 }

@@ -119,6 +119,10 @@
           "description": "ID del vecchio sensore, per esempio sensor.gas_consumption."
         }
       }
+    },
+    "repair_statistics": {
+      "name": "Ripara statistiche",
+      "description": "Toglie i salti nella somma dello storico (per esempio barre negative nella plancia Energia dopo un'importazione). Rilegge le letture memorizzate e ricalcola le somme partendo dall'ora più recente. Si può ripetere senza danni."
     }
   },
   "exceptions": {
