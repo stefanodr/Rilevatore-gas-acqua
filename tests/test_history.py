@@ -158,7 +158,10 @@ async def test_service_copies_history(recorder_mock: Recorder, hass: HomeAssista
     assert response[NEW]["imported_hours"] == 24 * 25
     rows = await _rows(hass, NEW)
     assert len(rows) >= 24 * 25
-    assert rows[0]["sum"] == 0.0
+    # la prima riga è l'àncora (un'ora prima, stessa somma della successiva)
+    assert rows[0]["sum"] == rows[1]["sum"] == 0.0
+    total_rows = len(rows)
+    rows = rows[1:]
     assert rows[24 * 25 - 1]["sum"] == 24 * 25 - 1
 
     # ripetere non rovina nulla
@@ -167,7 +170,7 @@ async def test_service_copies_history(recorder_mock: Recorder, hass: HomeAssista
             DOMAIN, "import_history", {"source": OLD},
             target={"entity_id": NEW}, blocking=True, return_response=True,
         )
-    assert len(await _rows(hass, NEW)) == len(rows)
+    assert len(await _rows(hass, NEW)) == total_rows
 
 
 async def test_service_errors(recorder_mock: Recorder, hass: HomeAssistant) -> None:
@@ -211,9 +214,10 @@ async def test_service_keeps_existing_rows(
     # le 5 righe esistenti sono identiche a prima (0, 1, 2, 3, 4)
     assert sums[-5:] == [0.0, 1.0, 2.0, 3.0, 4.0]
     # tra l'ultima ora vecchia (5047) e la prima esistente (5060) ci sono 13 m³
-    assert sums[-5] - sums[47] == 13.0
+    # (sums[0] è l'àncora in testa, le ore vecchie vanno da sums[1] a sums[48])
+    assert sums[-5] - sums[48] == 13.0
     # le vecchie mantengono i loro incrementi
-    assert sums[47] - sums[0] == 47.0
+    assert sums[48] - sums[1] == 47.0
 
 
 async def test_repair_service_fixes_negative_bar(
@@ -252,3 +256,44 @@ async def test_repair_service_fixes_negative_bar(
         target={"entity_id": NEW}, blocking=True, return_response=True,
     )
     assert again[NEW]["hours_fixed"] == 0  # ripetibile
+
+
+async def test_first_month_change_is_right_after_repair(
+    recorder_mock: Recorder, hass: HomeAssistant
+) -> None:
+    """Il primo mese dell'intervallo (come lo calcola Energia) non esce negativo."""
+    from homeassistant.components.recorder.statistics import statistics_during_period
+
+    await hass.config.async_set_time_zone("Europe/Rome")
+    first = dt_util.as_utc(dt_util.parse_datetime("2026-01-01T00:00:00+01:00"))
+    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    hours = int((now - first).total_seconds() // 3600)
+    rows = []
+    for i in range(hours):  # 1 m³ ogni 10 ore, somma gonfiata di 400 fino a metà
+        total = i / 10
+        rows.append({"start": first + timedelta(hours=i), "state": 5000.0 + total,
+                     "sum": total + (400.0 if i < hours // 2 else 0.0)})
+    async_import_statistics(hass, _meta(NEW), rows)
+    await async_wait_recording_done(hass)
+    await _setup(hass)
+
+    await hass.services.async_call(
+        DOMAIN, "repair_statistics", {},
+        target={"entity_id": NEW}, blocking=True, return_response=True,
+    )
+    await async_wait_recording_done(hass)
+    result = await get_instance(hass).async_add_executor_job(
+        statistics_during_period, hass, first, None, {NEW}, "month", None, {"change"}
+    )
+    changes = [round(r["change"], 1) for r in result[NEW]]
+    assert changes[0] == round((31 * 24 - 1) / 10, 1)  # gennaio: 74,3 m³ (fino all'ultima ora)
+    assert all(c > 0 for c in changes[:-1])
+    assert round(sum(changes), 1) == round((hours - 1) / 10, 1)
+
+    # ripetere non aggiunge altre righe di àncora
+    count = len(await _rows(hass, NEW))
+    await hass.services.async_call(
+        DOMAIN, "repair_statistics", {},
+        target={"entity_id": NEW}, blocking=True, return_response=True,
+    )
+    assert len(await _rows(hass, NEW)) == count

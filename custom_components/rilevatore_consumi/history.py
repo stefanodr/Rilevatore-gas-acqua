@@ -86,6 +86,34 @@ def merge_rows(
     return merged
 
 
+def with_anchor(rows: list[StatisticData]) -> list[StatisticData]:
+    """Aggiunge in testa una riga "àncora" un'ora prima della prima.
+
+    La plancia Energia calcola il consumo del primo periodo rispetto alla somma
+    della riga precedente e, se non c'è, rispetto a zero: con somme che non
+    partono da zero il primo mese verrebbe sbagliato (anche negativo).
+    L'àncora ha la stessa lettura e la stessa somma della prima riga.
+    """
+    if not rows:
+        return rows
+    first = rows[0]
+    if len(rows) > 1:
+        second = rows[1]
+        already = (
+            _ts(second["start"]) - _ts(first["start"]) == timedelta(hours=1)
+            and first["state"] == second["state"]
+            and first["sum"] == second["sum"]
+        )
+        if already:
+            return rows
+    anchor = StatisticData(
+        start=_ts(first["start"]) - timedelta(hours=1),
+        state=first["state"],
+        sum=first["sum"],
+    )
+    return [anchor, *rows]
+
+
 def rebuild_sums(rows: list[dict[str, Any]]) -> list[StatisticData]:
     """Ricalcola le somme dalle letture, partendo dalla riga più recente.
 
@@ -120,10 +148,17 @@ async def async_repair_sums(
     changed = sum(
         1 for old, new in zip(rows, fixed) if abs(float(old["sum"]) - new["sum"]) > 0.01
     )
-    if changed:
-        async_import_statistics(hass, _metadata(target_id, name), fixed)
+    anchored = with_anchor(fixed)
+    added_anchor = len(anchored) - len(fixed)
+    if changed or added_anchor:
+        async_import_statistics(hass, _metadata(target_id, name), anchored)
         await instance.async_block_till_done()
-    return {"target": target_id, "hours": len(rows), "hours_fixed": changed}
+    return {
+        "target": target_id,
+        "hours": len(rows),
+        "hours_fixed": changed,
+        "anchor_added": bool(added_anchor),
+    }
 
 
 def _metadata(target_id: str, name: str | None) -> StatisticMetaData:
@@ -173,7 +208,7 @@ async def async_write_history(
     merged = merge_rows(old_rows, new_rows)
 
     metadata = _metadata(target_id, name)
-    async_import_statistics(hass, metadata, merged)
+    async_import_statistics(hass, metadata, with_anchor(merged))
     await instance.async_block_till_done()
     return {
         "target": target_id,

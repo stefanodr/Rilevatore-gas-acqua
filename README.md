@@ -73,7 +73,7 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 
 ### Risoluzione dei problemi
 
-**Barre negative nella plancia Energia** (per esempio −440 m³ nell'ultimo mese, dopo aver importato storico o file con una versione precedente): esegui in *Strumenti per sviluppatori → Azioni* `rilevatore_consumi.repair_statistics` sul sensore "Lettura contatore" di ogni contatore. Il servizio ricalcola le somme dalle letture memorizzate partendo dall'ora più recente; si può ripetere senza danni. Dopo l'aggiornamento le importazioni non creano più il problema.
+**Barre negative nella plancia Energia** (per esempio −440 m³ nell'ultimo mese, dopo aver importato storico o file con una versione precedente): esegui in *Strumenti per sviluppatori → Azioni* `rilevatore_consumi.repair_statistics` sul sensore "Lettura contatore" di ogni contatore. Il servizio ricalcola le somme dalle letture memorizzate partendo dall'ora più recente e aggiunge in testa una riga di riferimento, necessaria perché la plancia calcoli bene il primo mese dell'anno; si può ripetere senza danni. Dopo l'aggiornamento le importazioni non creano più il problema.
 
 **Le card non si aprono nella Companion app** ("Errore di configurazione" / "Custom element doesn't exist") mentre dal browser funzionano: è un difetto noto dell'app (home-assistant/frontend #55272), che tiene in cache la pagina iniziale e non riceve i moduli aggiunti dalle integrazioni. Registra la card anche come risorsa della dashboard: *Impostazioni → Dashboard → ⋮ → Risorse → Aggiungi risorsa*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, tipo *Modulo JavaScript*. In alternativa svuota la cache dell'app.
 
@@ -155,7 +155,7 @@ The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 
 ### Troubleshooting
 
-**Negative bars in the Energy dashboard** (for example −440 m³ in the last month, after importing history or a file with an earlier version): in *Developer tools → Actions* run `rilevatore_consumi.repair_statistics` on the "Meter reading" sensor of each meter. The service recomputes the sums from the stored readings starting from the most recent hour; safe to repeat. After the update, imports no longer cause the problem.
+**Negative bars in the Energy dashboard** (for example −440 m³ in the last month, after importing history or a file with an earlier version): in *Developer tools → Actions* run `rilevatore_consumi.repair_statistics` on the "Meter reading" sensor of each meter. The service recomputes the sums from the stored readings starting from the most recent hour and adds a reference row at the start, needed for the dashboard to compute the first month of the year correctly; safe to repeat. After the update, imports no longer cause the problem.
 
 **Cards do not open in the Companion app** ("Configuration error" / "Custom element doesn't exist") while they work in the browser: this is a known app issue (home-assistant/frontend #55272): the app caches the start page and does not receive modules added by integrations. Also register the card as a dashboard resource: *Settings → Dashboards → ⋮ → Resources → Add resource*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, type *JavaScript module*. Alternatively clear the app cache.
 
