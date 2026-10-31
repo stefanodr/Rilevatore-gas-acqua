@@ -22,6 +22,7 @@ Da pacchetto YAML a **integrazione personalizzata** (`rilevatore_consumi`), inst
 - L'importazione dello storico non altera più le statistiche già presenti (evita barre negative nella plancia Energia); nuovo servizio `repair_statistics` per correggere somme già alterate.
 - **Storico**: servizio `import_history` e opzione "sensore di cui prendere il nome" per riprendere le statistiche del vecchio sensore della v1.x.
 - Opzione "sensore esistente": il nuovo sensore prende il nome (es. `sensor.gas_consumption`) e quindi lo **storico** del sensore della v1.x.
+- README: guida per ripristinare i contatori mensile/annuale (CSV con lettura a inizio periodo) e i totali della plancia Energia (`import_history`, `repair_statistics`, `utility_meter.calibrate`); immagini delle card gas e acqua.
 - Icona dell'integrazione (Home Assistant 2026.3 o successivo).
 - Traduzioni italiano e inglese. Tutta la logica è coperta da test automatici.
 
@@ -56,6 +57,7 @@ From YAML package to a **custom integration** (`rilevatore_consumi`), installabl
 - History import no longer alters existing statistics (avoids negative bars in the Energy dashboard); new `repair_statistics` service to fix sums already affected.
 - **History**: `import_history` service and a "sensor whose name to take over" option to pick up the statistics of the old v1.x sensor.
 - "Existing sensor" option: the new sensor takes over its name (e.g. `sensor.gas_consumption`) and therefore the **history** of the v1.x sensor.
+- README: guide to restore monthly/yearly counters (CSV with the period-start reading) and Energy dashboard totals (`import_history`, `repair_statistics`, `utility_meter.calibrate`); gas and water card pictures.
 - Integration icon (Home Assistant 2026.3 or later).
 - Italian and English translations. All logic is covered by automated tests.
 

@@ -2,6 +2,12 @@
 
 🇮🇹 [Italiano](#italiano) · 🇬🇧 [English](#english)
 
+<p align="center">
+  <img src="docs/images/card-gas.png" alt="Card Gas / Gas card" width="330">
+  &nbsp;&nbsp;
+  <img src="docs/images/card-water.png" alt="Card Acqua / Water card" width="330">
+</p>
+
 ---
 
 <a id="italiano"></a>
@@ -28,6 +34,7 @@ Per ogni contatore ottieni:
 ### Inserire la lettura
 
 - **A mano**: card, entità *Nuova lettura* o servizio `rilevatore_consumi.set_reading`.
+- **Da CSV**: con la card tocca 📁 *File*, controlla l'anteprima e conferma. Serve per caricare più letture in blocco, per portare lo storico su una nuova installazione e per ripristinare i contatori (vedi [Ripristinare contatori e totali](#ripristino)).
 - **Da foto**: con la card tocca 📷, scatta, controlla il valore proposto e conferma. Richiede un'entità **AI Task** (es. Google Gemini, oppure Ollama in locale se non vuoi inviare foto a servizi esterni). Nelle opzioni dell'integrazione puoi scegliere quale usare. Il valore è sempre solo un suggerimento: **non viene salvato senza la tua conferma**.
 
 Controlli: una lettura più bassa viene rifiutata (se hai sostituito il contatore, conferma "contatore sostituito"); un aumento oltre la soglia (300 m³ gas, 100 m³ acqua, modificabile) va confermato.
@@ -56,6 +63,33 @@ Con l'importazione:
 - le statistiche del grafico vengono ricostruite ripartendo il consumo tra una lettura e l'altra (è una stima giorno per giorno; i totali restano esatti). Si riempie il periodo precedente ai dati già presenti, senza toccare quelli esistenti; ripetere l'importazione non duplica nulla.
 
 È il modo più semplice anche per caricare nuove letture in blocco o per portare lo storico dell'acqua e del gas su una nuova installazione.
+
+<a id="ripristino"></a>
+### Ripristinare contatori mensile/annuale e totali della plancia Energia
+
+Se «Questo mese» / «Quest'anno» partono da un valore sbagliato (es. dopo una nuova installazione) o la plancia Energia mostra totali errati, ripristina così.
+
+**1. Contatori mensile e annuale corretti.** Il consumo di un periodo è la lettura attuale meno la lettura **a inizio periodo**. Carica un CSV che contenga la lettura del 1° gennaio (per l'anno) e/o del 1° del mese (per il mese):
+
+```
+data;lettura
+01/01/2026;4362
+01/10/2026;4800
+```
+
+Dopo l'importazione la card toglie la dicitura «(parziale)» e i valori sono esatti. Con più letture intermedie (anche una al mese) il grafico diventa più preciso. Se hai già un'esportazione della cronologia del vecchio sensore, caricala così com'è.
+
+**2. Totali della plancia Energia.** La plancia usa le statistiche a lungo termine. Per ricostruire il passato carica un CSV con lo storico (il periodo precedente ai dati già presenti viene riempito, quelli esistenti non vengono toccati; ripetere l'importazione non duplica nulla). In alternativa usa il servizio `rilevatore_consumi.import_history` (campo `source`: il vecchio sensore). Se hai già barre negative o totali sballati, esegui una volta `rilevatore_consumi.repair_statistics` sul sensore *Lettura contatore* e attendi circa un'ora che la plancia si aggiorni.
+
+**3. Se usi ancora i contatori `utility_meter` della v1.x.** Puoi correggerli con *Strumenti per sviluppatori → Azioni* e `utility_meter.calibrate`, indicando i **m³ consumati nel periodo corrente** (non la lettura del contatore):
+
+```yaml
+action: utility_meter.calibrate
+target:
+  entity_id: sensor.consumo_mensile_gas
+data:
+  value: "12"
+```
 
 ### Se arrivi dalla v1.x (package YAML)
 
@@ -110,6 +144,7 @@ Each meter provides:
 ### Entering a reading
 
 - **By hand**: the card, the *New reading* entity or the `rilevatore_consumi.set_reading` service.
+- **From CSV**: in the card tap 📁 *File*, check the preview and confirm. Use it to load many readings at once, to bring history into a new installation and to restore the counters (see [Restoring counters and totals](#restore)).
 - **From a photo**: in the card tap 📷, take the picture, check the proposed value and confirm. Needs an **AI Task** entity (e.g. Google Gemini, or local Ollama if you don't want photos sent to external services). You can choose which one in the integration options. The value is only a suggestion: **nothing is saved without your confirmation**.
 
 Checks: a lower reading is rejected (if you replaced the meter, confirm "meter replaced"); an increase above the threshold (300 m³ gas, 100 m³ water, configurable) must be confirmed.
@@ -138,6 +173,33 @@ On import:
 - chart statistics are rebuilt by spreading consumption between readings (a day-by-day estimate; totals stay exact). It fills the period before the data already present, without touching existing data; importing twice does not duplicate anything.
 
 It is also the easiest way to load new readings in bulk or to bring gas and water history into a fresh installation.
+
+<a id="restore"></a>
+### Restoring monthly/yearly counters and Energy dashboard totals
+
+If "This month" / "This year" start from a wrong value (e.g. after a fresh install) or the Energy dashboard shows wrong totals, restore them like this.
+
+**1. Correct monthly and yearly counters.** Consumption of a period is the current reading minus the reading **at the start of the period**. Upload a CSV holding the reading of 1 January (for the year) and/or the 1st of the month (for the month):
+
+```
+date;reading
+01/01/2026;4362
+01/10/2026;4800
+```
+
+After the import the card drops the "(partial)" label and the values are exact. More intermediate readings (even one per month) make the chart more accurate. If you already have a history export of the old sensor, upload it as it is.
+
+**2. Energy dashboard totals.** The dashboard uses long-term statistics. To rebuild the past, upload a CSV with the history (the period before existing data is filled, existing data is left untouched; importing twice does not duplicate anything). Alternatively use the `rilevatore_consumi.import_history` service (`source` field: the old sensor). If you already have negative bars or wrong totals, run `rilevatore_consumi.repair_statistics` once on the *Meter reading* sensor and wait about an hour for the dashboard to refresh.
+
+**3. If you still use the v1.x `utility_meter` counters.** Fix them from *Developer tools → Actions* with `utility_meter.calibrate`, giving the **m³ consumed in the current period** (not the meter reading):
+
+```yaml
+action: utility_meter.calibrate
+target:
+  entity_id: sensor.consumo_mensile_gas
+data:
+  value: "12"
+```
 
 ### Coming from v1.x (YAML package)
 
