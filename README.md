@@ -111,7 +111,16 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 
 **Le card non si aprono nella Companion app** ("Errore di configurazione" / "Custom element doesn't exist") mentre dal browser funzionano: è un difetto noto dell'app (home-assistant/frontend #55272), che tiene in cache la pagina iniziale e non riceve i moduli aggiunti dalle integrazioni. Registra la card anche come risorsa della dashboard: *Impostazioni → Dashboard → ⋮ → Risorse → Aggiungi risorsa*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, tipo *Modulo JavaScript*. In alternativa svuota la cache dell'app.
 
-**Con la Companion app Android il pulsante 📷 permette solo di scegliere una foto già scattata**: l'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefono), quindi lo scatto diretto non è disponibile. Soluzioni: scatta la foto con la fotocamera del telefono e poi scegline l'ultima dalla galleria con 📷 (il valore va comunque confermato), oppure apri Home Assistant in Chrome, che chiede il permesso e apre direttamente la fotocamera.
+### Domande frequenti
+
+**Dopo il download da HACS non vedo l'integrazione.**
+Riavvia **Home Assistant** per intero (non solo HACS: *Impostazioni → Sistema → Riavvia*), poi *Impostazioni → Dispositivi e servizi → Aggiungi integrazione* e cerca "Rilevatore consumi". Verifica inoltre che Home Assistant sia 2025.10 o successivo, che il repository sia stato aggiunto con categoria *Integrazione* e che in `/config/custom_components/` esista la cartella `rilevatore_consumi` con dentro `manifest.json` e gli altri file. Se manca, riscarica da HACS; se c'è ma l'integrazione non compare, cerca `rilevatore_consumi` in *Impostazioni → Sistema → Log*.
+
+**Ho importato da file valori sbagliati e anche reinstallando riappaiono.**
+Eliminando l'integrazione si cancellano le letture, ma le **statistiche a lungo termine** restano nel database e vengono riprese alla reinstallazione (l'importazione non sovrascrive i dati già presenti). Per ripartire: elimina l'integrazione, in *Strumenti per sviluppatori → Statistiche* elimina le statistiche del sensore "Lettura contatore" di quel contatore (solo quello), riavvia, aggiungi di nuovo l'integrazione con la lettura corretta e importa il CSV giusto. Il CSV deve contenere le **letture del contatore** (m³ interi), non i consumi.
+
+**Con la Companion app Android il pulsante 📷 permette solo di scegliere una foto già scattata.**
+L'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefono), quindi lo scatto diretto non è disponibile. Scatta la foto con la fotocamera del telefono e poi scegli l'ultima dalla galleria con 📷 (il valore va comunque confermato), oppure apri Home Assistant in Chrome, che chiede il permesso e apre direttamente la fotocamera.
 
 ### Servizi
 
@@ -223,7 +232,16 @@ The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 
 **Cards do not open in the Companion app** ("Configuration error" / "Custom element doesn't exist") while they work in the browser: this is a known app issue (home-assistant/frontend #55272): the app caches the start page and does not receive modules added by integrations. Also register the card as a dashboard resource: *Settings → Dashboards → ⋮ → Resources → Add resource*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, type *JavaScript module*. Alternatively clear the app cache.
 
-**With the Android Companion app the 📷 button only lets you pick an existing photo**: the app has no Camera permission (it does not appear in the phone's permissions), so direct capture is not available. Workarounds: take the picture with the phone camera and then pick the latest one from the gallery with 📷 (the value still has to be confirmed), or open Home Assistant in Chrome, which asks for the permission and opens the camera directly.
+### FAQ
+
+**After downloading from HACS I can't see the integration.**
+Restart **Home Assistant** completely (not only HACS: *Settings → System → Restart*), then *Settings → Devices & services → Add integration* and search for "Rilevatore consumi". Also check that Home Assistant is 2025.10 or later, that the repository was added with the *Integration* category, and that `/config/custom_components/` contains the `rilevatore_consumi` folder with `manifest.json` and the other files. If it is missing, download again from HACS; if it is there but the integration does not show up, search for `rilevatore_consumi` in *Settings → System → Logs*.
+
+**I imported wrong values from a file and they come back even after reinstalling.**
+Deleting the integration removes the readings, but the **long-term statistics** stay in the database and are picked up again on reinstall (the import does not overwrite existing data). To start clean: delete the integration, in *Developer tools → Statistics* delete the statistics of that meter's "Meter reading" sensor (only that one), restart, add the integration again with the correct reading and import the right CSV. The CSV must contain **meter readings** (whole m³), not consumption.
+
+**With the Android Companion app the 📷 button only lets me pick an existing photo.**
+The app has no Camera permission (it does not appear in the phone's permissions), so direct capture is not available. Take the picture with the phone camera and then pick the latest one from the gallery with 📷 (the value still has to be confirmed), or open Home Assistant in Chrome, which asks for the permission and opens the camera directly.
 
 ### Services
 
