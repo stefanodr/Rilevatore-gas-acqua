@@ -111,6 +111,8 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 
 **Le card non si aprono nella Companion app** ("Errore di configurazione" / "Custom element doesn't exist") mentre dal browser funzionano: è un difetto noto dell'app (home-assistant/frontend #55272), che tiene in cache la pagina iniziale e non riceve i moduli aggiunti dalle integrazioni. Registra la card anche come risorsa della dashboard: *Impostazioni → Dashboard → ⋮ → Risorse → Aggiungi risorsa*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, tipo *Modulo JavaScript*. In alternativa svuota la cache dell'app.
 
+**Con la Companion app Android il pulsante 📷 permette solo di scegliere una foto già scattata**: l'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefono), quindi lo scatto diretto non è disponibile. Soluzioni: scatta la foto con la fotocamera del telefono e poi scegline l'ultima dalla galleria con 📷 (il valore va comunque confermato), oppure apri Home Assistant in Chrome, che chiede il permesso e apre direttamente la fotocamera.
+
 ### Servizi
 
 - `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
@@ -220,6 +222,8 @@ The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 **Negative bars in the Energy dashboard** (for example −440 m³ in the last month, after importing history or a file with an earlier version): in *Developer tools → Actions* run `rilevatore_consumi.repair_statistics` on the "Meter reading" sensor of each meter. The service recomputes the sums from the stored readings starting from the most recent hour and adds a reference row at the start, needed for the dashboard to compute the first month of the year correctly; safe to repeat. After the update, imports no longer cause the problem.
 
 **Cards do not open in the Companion app** ("Configuration error" / "Custom element doesn't exist") while they work in the browser: this is a known app issue (home-assistant/frontend #55272): the app caches the start page and does not receive modules added by integrations. Also register the card as a dashboard resource: *Settings → Dashboards → ⋮ → Resources → Add resource*, URL `/rilevatore_consumi_static/rilevatore-consumi-card.js`, type *JavaScript module*. Alternatively clear the app cache.
+
+**With the Android Companion app the 📷 button only lets you pick an existing photo**: the app has no Camera permission (it does not appear in the phone's permissions), so direct capture is not available. Workarounds: take the picture with the phone camera and then pick the latest one from the gallery with 📷 (the value still has to be confirmed), or open Home Assistant in Chrome, which asks for the permission and opens the camera directly.
 
 ### Services
 
