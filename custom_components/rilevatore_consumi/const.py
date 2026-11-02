@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "rilevatore_consumi"
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 
 CONF_TYPE = "meter_type"
 CONF_EXISTING = "existing_entity"
