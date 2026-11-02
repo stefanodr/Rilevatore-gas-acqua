@@ -1,4 +1,4 @@
-# Rilevatore consumi gas / acqua · Gas / water meter reader (v2.0.1)
+# Rilevatore consumi gas / acqua · Gas / water meter reader (v2.1.0)
 
 🇮🇹 [Italiano](#italiano) · 🇬🇧 [English](#english)
 
@@ -117,7 +117,7 @@ Nella cartella `legacy/` trovi la v1.1 (package YAML) per chi preferisce restare
 Riavvia **Home Assistant** per intero (non solo HACS: *Impostazioni → Sistema → Riavvia*), poi *Impostazioni → Dispositivi e servizi → Aggiungi integrazione* e cerca "Rilevatore consumi". Verifica inoltre che Home Assistant sia 2025.10 o successivo, che il repository sia stato aggiunto con categoria *Integrazione* e che in `/config/custom_components/` esista la cartella `rilevatore_consumi` con dentro `manifest.json` e gli altri file. Se manca, riscarica da HACS; se c'è ma l'integrazione non compare, cerca `rilevatore_consumi` in *Impostazioni → Sistema → Log*.
 
 **Ho importato da file valori sbagliati e anche reinstallando riappaiono.**
-Eliminando l'integrazione si cancellano le letture, ma le **statistiche a lungo termine** restano nel database e vengono riprese alla reinstallazione (l'importazione non sovrascrive i dati già presenti). Per ripartire: elimina l'integrazione, in *Strumenti per sviluppatori → Statistiche* elimina le statistiche del sensore "Lettura contatore" di quel contatore (solo quello), riavvia, aggiungi di nuovo l'integrazione con la lettura corretta e importa il CSV giusto. Il CSV deve contenere le **letture del contatore** (m³ interi), non i consumi.
+Eliminando l'integrazione si cancellano le letture, ma le **statistiche a lungo termine** restano nel database e vengono riprese alla reinstallazione (l'importazione non sovrascrive i dati già presenti). Per ripartire (dalla v2.1) esegui in *Strumenti per sviluppatori → Azioni* `rilevatore_consumi.reset_history` sul sensore "Lettura contatore" di quel contatore, con `confirm` attivo e, se serve, la lettura corretta in `reading`: cancella letture e statistiche in un solo passaggio. Poi importa il CSV giusto. Con versioni precedenti: elimina l'integrazione, in *Strumenti per sviluppatori → Statistiche* elimina le statistiche del sensore "Lettura contatore" (solo quello), riavvia, aggiungi di nuovo l'integrazione con la lettura corretta e importa il CSV. Il CSV deve contenere le **letture del contatore** (m³ interi), non i consumi.
 
 **Con la Companion app Android il pulsante 📷 permette solo di scegliere una foto già scattata.**
 L'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefono), quindi lo scatto diretto non è disponibile. Scatta la foto con la fotocamera del telefono e poi scegli l'ultima dalla galleria con 📷 (il valore va comunque confermato), oppure apri Home Assistant in Chrome, che chiede il permesso e apre direttamente la fotocamera.
@@ -128,6 +128,7 @@ L'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefo
 - `rilevatore_consumi.read_from_photo` — `media` (restituisce la proposta, non salva)
 - `rilevatore_consumi.import_history` — `source` (copia le statistiche di un vecchio sensore)
 - `rilevatore_consumi.repair_statistics` — toglie i salti nelle somme dello storico
+- `rilevatore_consumi.reset_history` — `confirm`, `reading` (facoltativa): **cancella in un solo passaggio** letture, consumi di mese/anno e statistiche del contatore; non si può annullare, da eseguire sul sensore "Lettura contatore"
 
 ---
 
@@ -238,7 +239,7 @@ The `legacy/` folder holds v1.1 (YAML package) for those who prefer it.
 Restart **Home Assistant** completely (not only HACS: *Settings → System → Restart*), then *Settings → Devices & services → Add integration* and search for "Rilevatore consumi". Also check that Home Assistant is 2025.10 or later, that the repository was added with the *Integration* category, and that `/config/custom_components/` contains the `rilevatore_consumi` folder with `manifest.json` and the other files. If it is missing, download again from HACS; if it is there but the integration does not show up, search for `rilevatore_consumi` in *Settings → System → Logs*.
 
 **I imported wrong values from a file and they come back even after reinstalling.**
-Deleting the integration removes the readings, but the **long-term statistics** stay in the database and are picked up again on reinstall (the import does not overwrite existing data). To start clean: delete the integration, in *Developer tools → Statistics* delete the statistics of that meter's "Meter reading" sensor (only that one), restart, add the integration again with the correct reading and import the right CSV. The CSV must contain **meter readings** (whole m³), not consumption.
+Deleting the integration removes the readings, but the **long-term statistics** stay in the database and are picked up again on reinstall (the import does not overwrite existing data). To start clean (from v2.1) run `rilevatore_consumi.reset_history` in *Developer tools → Actions* on that meter's "Meter reading" sensor, with `confirm` on and, if needed, the correct reading in `reading`: it deletes readings and statistics in one step. Then import the right CSV. With earlier versions: delete the integration, in *Developer tools → Statistics* delete the statistics of the "Meter reading" sensor (only that one), restart, add the integration again with the correct reading and import the CSV. The CSV must contain **meter readings** (whole m³), not consumption.
 
 **With the Android Companion app the 📷 button only lets me pick an existing photo.**
 The app has no Camera permission (it does not appear in the phone's permissions), so direct capture is not available. Take the picture with the phone camera and then pick the latest one from the gallery with 📷 (the value still has to be confirmed), or open Home Assistant in Chrome, which asks for the permission and opens the camera directly.
@@ -249,3 +250,4 @@ The app has no Camera permission (it does not appear in the phone's permissions)
 - `rilevatore_consumi.read_from_photo` — `media` (returns the proposal, saves nothing)
 - `rilevatore_consumi.import_history` — `source` (copies the statistics of an old sensor)
 - `rilevatore_consumi.repair_statistics` — removes jumps in the history sums
+- `rilevatore_consumi.reset_history` — `confirm`, `reading` (optional): **deletes in one go** the readings, month/year consumption and statistics of the meter; it cannot be undone, run it on the "Meter reading" sensor

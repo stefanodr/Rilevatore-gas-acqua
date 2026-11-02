@@ -123,6 +123,20 @@
     "repair_statistics": {
       "name": "Repair statistics",
       "description": "Removes jumps in the history sums (for example negative bars in the Energy dashboard after an import). Re-reads the stored readings and recomputes the sums starting from the most recent hour. Safe to repeat."
+    },
+    "reset_history": {
+      "name": "Reset history",
+      "description": "Deletes in one go the list of readings, month and year consumption and all statistics (charts and Energy dashboard) of this meter. It cannot be undone: afterwards import the correct CSV or enter the reading. Run it on the \"Meter reading\" sensor.",
+      "fields": {
+        "confirm": {
+          "name": "Confirm",
+          "description": "Turn on to confirm the deletion."
+        },
+        "reading": {
+          "name": "Restart reading",
+          "description": "Optional: new current reading (integer part only). If empty the current one is kept."
+        }
+      }
     }
   },
   "exceptions": {
@@ -155,6 +169,9 @@
     },
     "same_source": {
       "message": "The source must be a different sensor than the target."
+    },
+    "confirm_required": {
+      "message": "Turn on the confirmation to delete the history."
     }
   },
   "issues": {

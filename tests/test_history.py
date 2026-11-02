@@ -297,3 +297,55 @@ async def test_first_month_change_is_right_after_repair(
         target={"entity_id": NEW}, blocking=True, return_response=True,
     )
     assert len(await _rows(hass, NEW)) == count
+
+
+async def test_reset_history_clears_readings_and_statistics(
+    recorder_mock: Recorder, hass: HomeAssistant
+) -> None:
+    """reset_history cancella letture, basi e statistiche; poi si può reimportare."""
+    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    t0 = now - timedelta(days=10)
+    rows = [
+        {"start": t0 + timedelta(hours=i), "state": 5000.0 + i / 10, "sum": i / 10}
+        for i in range(24 * 9)
+    ]
+    async_import_statistics(hass, _meta(NEW), rows)
+    await async_wait_recording_done(hass)
+    entry = await _setup(hass)
+    assert len(await _rows(hass, NEW)) == len(rows)
+
+    # senza conferma non succede nulla
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "reset_history", {"confirm": False},
+            target={"entity_id": NEW}, blocking=True,
+        )
+    assert len(await _rows(hass, NEW)) == len(rows)
+
+    meter = entry.runtime_data
+    old_log = list(meter.log)
+    response = await hass.services.async_call(
+        DOMAIN, "reset_history", {"confirm": True, "reading": 5700},
+        target={"entity_id": NEW}, blocking=True, return_response=True,
+    )
+    assert NEW in response[NEW]["cleared"]
+    assert response[NEW]["reading"] == 5700
+    assert await _rows(hass, NEW) == []
+    assert meter.reading == 5700
+    assert len(meter.log) == 1 and meter.log[0]["v"] == 5700
+    assert meter.log != old_log
+    assert meter.consumption("month") == 0
+    assert meter.consumption("year") == 0
+    assert not meter.is_exact("year")
+
+    # senza lettura indicata resta quella attuale
+    await hass.services.async_call(
+        DOMAIN, "reset_history", {"confirm": True},
+        target={"entity_id": NEW}, blocking=True,
+    )
+    assert meter.reading == 5700
+
+    # lo storico si può reimportare da zero
+    async_import_statistics(hass, _meta(NEW), rows[:48])
+    await async_wait_recording_done(hass)
+    assert len(await _rows(hass, NEW)) == 48

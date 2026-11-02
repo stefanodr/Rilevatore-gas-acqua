@@ -79,6 +79,17 @@ async def async_setup_entry(
         supports_response=SupportsResponse.OPTIONAL,
     )
     platform.async_register_entity_service(
+        "reset_history",
+        {
+            vol.Required("confirm"): cv.boolean,
+            vol.Optional(ATTR_READING): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=MAX_READING)
+            ),
+        },
+        "async_service_reset_history",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    platform.async_register_entity_service(
         "read_from_photo",
         {vol.Required(ATTR_MEDIA): selector.MediaSelector()},
         "async_service_read_from_photo",

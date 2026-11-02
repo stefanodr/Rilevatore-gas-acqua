@@ -161,6 +161,14 @@ async def async_repair_sums(
     }
 
 
+async def async_clear_history(hass: HomeAssistant, statistic_ids: list[str]) -> None:
+    """Cancella le statistiche a lungo termine (e a breve termine) dei sensori indicati."""
+    instance = get_instance(hass)
+    await instance.async_block_till_done()
+    instance.async_clear_statistics(statistic_ids)
+    await instance.async_block_till_done()
+
+
 def _metadata(target_id: str, name: str | None) -> StatisticMetaData:
     return StatisticMetaData(
         has_sum=True,

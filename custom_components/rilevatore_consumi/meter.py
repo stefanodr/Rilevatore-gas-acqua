@@ -303,6 +303,26 @@ class Meter:
         await self._store.async_save(self._as_dict())
         self._notify()
 
+    async def async_reset(self, reading: float | None = None) -> None:
+        """Cancella elenco letture e basi di calcolo; riparte da `reading` (o da quella attuale)."""
+        now = dt_util.now()
+        if reading is not None:
+            new = int(reading)
+            if new < 0 or new > MAX_READING:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_reading",
+                    translation_placeholders={"new": str(new)},
+                )
+            self.reading = new
+        self.previous = None
+        self.updated = now
+        self.baselines = {}
+        self.log = [self._log_item(self.reading, now)] if self.reading is not None else []
+        self._roll(now)
+        await self._store.async_save(self._as_dict())
+        self._notify()
+
     # ------------------------------------------------------------------ storico da file
     async def async_apply_history(
         self, readings: list[tuple[datetime, int]]

@@ -123,6 +123,20 @@
     "repair_statistics": {
       "name": "Ripara statistiche",
       "description": "Toglie i salti nella somma dello storico (per esempio barre negative nella plancia Energia dopo un'importazione). Rilegge le letture memorizzate e ricalcola le somme partendo dall'ora più recente. Si può ripetere senza danni."
+    },
+    "reset_history": {
+      "name": "Azzera storico",
+      "description": "Cancella in un solo passaggio l'elenco delle letture, i consumi di mese e anno e tutte le statistiche (grafici e plancia Energia) di questo contatore. Non si può annullare: dopo, importa il CSV corretto o inserisci la lettura. Esegui l'azione sul sensore \"Lettura contatore\".",
+      "fields": {
+        "confirm": {
+          "name": "Conferma",
+          "description": "Attiva per confermare la cancellazione."
+        },
+        "reading": {
+          "name": "Lettura di ripartenza",
+          "description": "Facoltativa: nuova lettura attuale (solo la parte intera). Se vuota resta quella attuale."
+        }
+      }
     }
   },
   "exceptions": {
@@ -155,6 +169,9 @@
     },
     "same_source": {
       "message": "L'origine deve essere un sensore diverso da quello di destinazione."
+    },
+    "confirm_required": {
+      "message": "Per cancellare lo storico attiva la conferma."
     }
   },
   "issues": {

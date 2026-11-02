@@ -53,3 +53,25 @@ repair_statistics:
     entity:
       integration: rilevatore_consumi
       domain: sensor
+
+reset_history:
+  target:
+    entity:
+      integration: rilevatore_consumi
+      domain: sensor
+  fields:
+    confirm:
+      required: true
+      default: false
+      selector:
+        boolean:
+    reading:
+      required: false
+      example: 5726
+      selector:
+        number:
+          min: 0
+          max: 99999999
+          step: 1
+          mode: box
+          unit_of_measurement: m³
