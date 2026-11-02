@@ -1,10 +1,18 @@
 {
   "domain": "rilevatore_consumi",
   "name": "Rilevatore consumi gas/acqua",
-  "codeowners": ["@stefanodr"],
+  "after_dependencies": [
+    "ai_task",
+    "recorder"
+  ],
+  "codeowners": [
+    "@stefanodr"
+  ],
   "config_flow": true,
-  "dependencies": ["http", "frontend"],
-  "after_dependencies": ["ai_task", "recorder"],
+  "dependencies": [
+    "http",
+    "frontend"
+  ],
   "documentation": "https://github.com/stefanodr/Rilevatore-gas-acqua",
   "integration_type": "service",
   "iot_class": "calculated",
