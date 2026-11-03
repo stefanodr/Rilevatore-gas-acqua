@@ -303,7 +303,9 @@ class Meter:
         await self._store.async_save(self._as_dict())
         self._notify()
 
-    async def async_reset(self, reading: float | None = None) -> None:
+    async def async_reset(
+        self, reading: float | None = None, *, log_reading: bool = True
+    ) -> None:
         """Cancella elenco letture e basi di calcolo; riparte da `reading` (o da quella attuale)."""
         now = dt_util.now()
         if reading is not None:
@@ -318,7 +320,11 @@ class Meter:
         self.previous = None
         self.updated = now
         self.baselines = {}
-        self.log = [self._log_item(self.reading, now)] if self.reading is not None else []
+        self.log = (
+            [self._log_item(self.reading, now)]
+            if log_reading and self.reading is not None
+            else []
+        )
         self._roll(now)
         await self._store.async_save(self._as_dict())
         self._notify()

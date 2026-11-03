@@ -123,6 +123,14 @@ class ImportView(HomeAssistantView):
         if request.query.get("commit") != "1":
             return self.json(summary)
 
+        replaced = request.query.get("replace") == "1"
+        if replaced:
+            # Sostituisce tutto: i dati esistenti (letture, consumi, statistiche,
+            # cronologia) vengono cancellati e si riparte dal file
+            from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
+
+            await meter.async_reset(readings[-1][1], log_reading=False)
+            await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
         result = await meter.async_apply_history(readings)
         statistics: dict[str, Any] | None = None
         if total_id and "recorder" in hass.config.components:
@@ -139,4 +147,4 @@ class ImportView(HomeAssistantView):
                 else:
                     statistics = {"error": str(err)}
             await meter.async_refine_baselines()
-        return self.json({**summary, **result, "committed": True, "statistics": statistics})
+        return self.json({**summary, **result, "committed": True, "replaced": replaced, "statistics": statistics})

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.core import ServiceResponse
-from homeassistant.helpers import entity_registry as er
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
@@ -72,20 +71,13 @@ class RilevatoreEntity(Entity):
         self, confirm: bool = False, reading: float | None = None
     ) -> ServiceResponse:
         """Servizio reset_history: cancella letture e statistiche del contatore."""
-        from .history import async_clear_history  # noqa: PLC0415
+        from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
 
         if not confirm:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="confirm_required"
             )
-        registry = er.async_get(self.hass)
-        ids = [
-            e.entity_id
-            for e in er.async_entries_for_config_entry(
-                registry, self.meter.entry.entry_id
-            )
-            if e.domain == "sensor"
-        ]
+        ids = meter_sensor_ids(self.hass, self.meter.entry.entry_id)
         await self.meter.async_reset(reading)
         await async_clear_history(self.hass, ids)
         return {"cleared": ids, "reading": self.meter.reading}

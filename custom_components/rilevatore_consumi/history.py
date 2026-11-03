@@ -17,6 +17,7 @@ from homeassistant.components.recorder.statistics import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import VolumeConverter
 
@@ -151,8 +152,7 @@ async def async_repair_sums(
     anchored = with_anchor(fixed)
     added_anchor = len(anchored) - len(fixed)
     if changed or added_anchor:
-        async_import_statistics(hass, _metadata(target_id, name), anchored)
-        await instance.async_block_till_done()
+        await _async_import_chunked(hass, _metadata(target_id, name), anchored)
     return {
         "target": target_id,
         "hours": len(rows),
@@ -161,11 +161,51 @@ async def async_repair_sums(
     }
 
 
+CHUNK_HOURS = 24 * 31
+
+
+async def _async_import_chunked(
+    hass: HomeAssistant, metadata: StatisticMetaData, rows: list[dict[str, Any]]
+) -> None:
+    """Scrive le statistiche a blocchi (circa un mese), aspettando il recorder.
+
+    Un file di anni diventa decine di migliaia di righe: in un'unica operazione
+    il recorder resterebbe occupato a lungo e le richieste successive falliscono.
+    """
+    instance = get_instance(hass)
+    for i in range(0, len(rows), CHUNK_HOURS):
+        async_import_statistics(hass, metadata, rows[i : i + CHUNK_HOURS])
+        await instance.async_block_till_done()
+
+
+def meter_sensor_ids(hass: HomeAssistant, entry_id: str) -> list[str]:
+    """Entity ID dei sensori (lettura, oggi, mese, anno) di un contatore."""
+    registry = er.async_get(hass)
+    return [
+        e.entity_id
+        for e in er.async_entries_for_config_entry(registry, entry_id)
+        if e.domain == "sensor"
+    ]
+
+
 async def async_clear_history(hass: HomeAssistant, statistic_ids: list[str]) -> None:
-    """Cancella le statistiche a lungo termine (e a breve termine) dei sensori indicati."""
+    """Cancella statistiche (lungo e breve termine) e cronologia degli stati dei sensori.
+
+    La cronologia degli stati è quella dei grafici che si aprono toccando l'entità:
+    è separata dalle statistiche e resterebbe con i vecchi valori.
+    """
+    if "recorder" not in hass.config.components:
+        return
     instance = get_instance(hass)
     await instance.async_block_till_done()
     instance.async_clear_statistics(statistic_ids)
+    await instance.async_block_till_done()
+    await hass.services.async_call(
+        "recorder",
+        "purge_entities",
+        {"entity_id": statistic_ids, "keep_days": 0},
+        blocking=True,
+    )
     await instance.async_block_till_done()
 
 
@@ -216,8 +256,7 @@ async def async_write_history(
     merged = merge_rows(old_rows, new_rows)
 
     metadata = _metadata(target_id, name)
-    async_import_statistics(hass, metadata, with_anchor(merged))
-    await instance.async_block_till_done()
+    await _async_import_chunked(hass, metadata, with_anchor(merged))
     return {
         "target": target_id,
         "imported_hours": len(merged) - len(new_rows),

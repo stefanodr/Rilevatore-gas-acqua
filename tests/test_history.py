@@ -349,3 +349,34 @@ async def test_reset_history_clears_readings_and_statistics(
     async_import_statistics(hass, _meta(NEW), rows[:48])
     await async_wait_recording_done(hass)
     assert len(await _rows(hass, NEW)) == 48
+
+
+async def test_reset_history_also_purges_state_history(
+    recorder_mock: Recorder, hass: HomeAssistant
+) -> None:
+    """Anche i grafici che si aprono toccando l'entità (stati) restano vuoti."""
+    from homeassistant.components.recorder.history import (  # noqa: PLC0415
+        get_significant_states,
+    )
+
+    entry = await _setup(hass)
+    for value in (5730, 5732, 5735):
+        await entry.runtime_data.async_set_reading(value, force=True)
+        await hass.async_block_till_done()
+    await async_wait_recording_done(hass)
+
+    def _states():
+        return get_significant_states(
+            hass, dt_util.utc_from_timestamp(0), entity_ids=[NEW],
+            include_start_time_state=False,
+        ).get(NEW, [])
+
+    instance = get_instance(hass)
+    assert len(await instance.async_add_executor_job(_states)) >= 3
+
+    await hass.services.async_call(
+        DOMAIN, "reset_history", {"confirm": True},
+        target={"entity_id": NEW}, blocking=True,
+    )
+    await async_wait_recording_done(hass)
+    assert await instance.async_add_executor_job(_states) == []

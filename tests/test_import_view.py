@@ -239,3 +239,68 @@ async def test_water_scenario_history_then_january_row(
     year = hass.states.get("sensor.gas_consumption_this_year")
     assert year.state == "17"
     assert year.attributes["partial"] is False
+
+
+async def test_import_after_reset_covers_all_years(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Dopo reset_history un file dal 2022 riempie tutti gli anni, non solo l'ultimo."""
+    from custom_components.rilevatore_consumi.const import DOMAIN  # noqa: PLC0415
+
+    entry = await _setup(hass, clock, reading=5800)
+    await hass.services.async_call(
+        DOMAIN, "reset_history", {"confirm": True},
+        target={"entity_id": SENSOR}, blocking=True,
+    )
+    lines = ["data;lettura"]
+    value = 4000
+    for year in range(2022, 2027):
+        for month in range(1, 13):
+            if (year, month) > (2026, 10):
+                break
+            lines.append(f"01/{month:02d}/{year};{value}")
+            value += 40
+    client = await hass_client()
+    resp = await _post(client, entry, "\n".join(lines).encode(), commit=True)
+    assert resp.status == 200
+    data = await resp.json()
+    rows = await _rows(hass, SENSOR)
+    first = dt_util.utc_from_timestamp(
+        rows[0]["start"] if isinstance(rows[0]["start"], (int, float)) else rows[0]["start"].timestamp()
+    )
+    assert "error" not in data["statistics"]
+    # la prima riga è quella di riferimento, un'ora prima del 1° gennaio 2022
+    local_first = dt_util.as_local(first)
+    assert local_first.year == 2021 and (local_first.month, local_first.day) == (12, 31)
+    assert dt_util.as_local(rows[1]["start"] if not isinstance(rows[1]["start"], (int, float)) else dt_util.utc_from_timestamp(rows[1]["start"])).year == 2022
+    assert len(rows) > 24 * 365 * 4
+
+
+async def test_import_with_replace_discards_existing_data(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Con replace=1 i dati esistenti spariscono e si riparte dal file."""
+    entry = await _setup(hass, clock, reading=5728)
+    client = await hass_client()
+    wrong = b"data;lettura\n01/10/2026;5200\n20/10/2026;5300\n"
+    resp = await client.post(
+        f"/api/rilevatore_consumi/import/{entry.entry_id}?commit=1",
+        data=wrong, headers={"Content-Type": "text/csv"},
+    )
+    assert resp.status == 200
+    assert len(await _rows(hass, SENSOR)) > 0
+
+    right = b"data;lettura\n01/10/2026;4000\n20/10/2026;4100\n"
+    resp = await client.post(
+        f"/api/rilevatore_consumi/import/{entry.entry_id}?commit=1&replace=1",
+        data=right, headers={"Content-Type": "text/csv"},
+    )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["replaced"] is True
+    meter = entry.runtime_data
+    assert meter.reading == 4100
+    assert [item["v"] for item in meter.log] == [4000, 4100]
+    rows = await _rows(hass, SENSOR)
+    assert rows and max(float(r["state"]) for r in rows) <= 4100.0 + 1e-6
+    assert min(float(r["state"]) for r in rows) >= 4000.0 - 1e-6

@@ -45,6 +45,11 @@ const TEXTS = {
     unavailable: "Nessuna lettura disponibile",
     file: "File",
     importTitle: "Importa letture da file",
+    impReplace: "Sostituisci i dati esistenti: cancella letture, consumi e storico di questo contatore e riparte dal file",
+    impReplaceConfirm: "Cancellare tutti i dati esistenti di questo contatore (letture, consumi, grafici, plancia Energia) e ripartire dal file? Non si può annullare.",
+    reset: "Azzera dati…",
+    resetConfirm: "Cancellare tutte le letture, i consumi e lo storico (grafici e plancia Energia) di questo contatore? Non si può annullare.",
+    resetDone: "Dati azzerati: inserisci la lettura o importa un file",
     impFound: "Letture trovate",
     impRange: "dal %from% al %to%, da %a% a %b% m³",
     impTotal: "Consumo complessivo",
@@ -104,6 +109,11 @@ const TEXTS = {
     unavailable: "No reading available",
     file: "File",
     importTitle: "Import readings from a file",
+    impReplace: "Replace existing data: deletes readings, consumption and history of this meter and restarts from the file",
+    impReplaceConfirm: "Delete all existing data of this meter (readings, consumption, charts, Energy dashboard) and restart from the file? This cannot be undone.",
+    reset: "Reset data…",
+    resetConfirm: "Delete all readings, consumption and history (charts and Energy dashboard) of this meter? This cannot be undone.",
+    resetDone: "Data reset: enter the reading or import a file",
     impFound: "Readings found",
     impRange: "from %from% to %to%, from %a% to %b% m³",
     impTotal: "Total consumption",
@@ -231,6 +241,10 @@ class RilevatoreConsumiCard extends HTMLElement {
           background: var(--primary-color); color: var(--text-primary-color, #fff); }
         button.secondary { background: var(--secondary-background-color); color: var(--primary-text-color); }
         button:disabled { opacity: 0.5; cursor: default; }
+        .repl { display: block; margin: 8px 0; font-size: 0.95em; }
+        .foot { margin-top: 12px; text-align: right; }
+        button.link { background: none; border: none; padding: 4px; cursor: pointer;
+          color: var(--secondary-text-color); font-size: 0.85em; text-decoration: underline; }
         .msg { margin-top: 8px; font-size: 0.95em; }
         .msg.error { color: var(--error-color); }
         .msg.ok { color: var(--success-color, green); }
@@ -284,12 +298,14 @@ class RilevatoreConsumiCard extends HTMLElement {
         <div class="import hidden">
           <div id="impTitle"><b></b></div>
           <div id="impBody"></div>
+          <label class="repl"><input type="checkbox" id="impReplace"> <span id="impReplaceText"></span></label>
           <div class="row">
             <button id="impGo"></button>
             <button id="impCancel" class="secondary"></button>
           </div>
         </div>
         <div class="msg"></div>
+        <div class="foot"><button id="reset" class="link"></button></div>
       </ha-card>`;
     const $ = (s) => this.shadowRoot.querySelector(s);
     $("#save").addEventListener("click", () => this._onSave());
@@ -299,7 +315,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     $("#cancel").addEventListener("click", () => this._cancel());
     $("#csv").addEventListener("click", () => $("#csvfile").click());
     $("#csvfile").addEventListener("change", (ev) => this._onCsv(ev));
-    $("#impGo").addEventListener("click", () => this._importFile(true));
+    $("#impGo").addEventListener("click", () => this._onImportGo());
+    $("#reset").addEventListener("click", () => this._onReset());
     $("#impCancel").addEventListener("click", () => this._cancelImport());
     $(".meterimg").addEventListener("error", (ev) => ev.target.classList.add("hidden"));
     $(".tabs").addEventListener("click", (ev) => {
@@ -346,6 +363,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     $("#save").textContent = t.save;
     $("#photo").textContent = `📷 ${t.photo}`;
     $("#csv").textContent = `📁 ${t.file}`;
+    $("#reset").textContent = t.reset;
+    $("#reset").disabled = this._busy;
     $("#confirm").textContent = t.confirm;
     $("#cancel").textContent = t.cancel;
     $("#value").placeholder = t.newReading;
@@ -638,7 +657,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     this._setMessage("", "");
     try {
       const resp = await this._hass.fetchWithAuth(
-        `/api/rilevatore_consumi/import/${target.entryId}?commit=${commit ? 1 : 0}`,
+        `/api/rilevatore_consumi/import/${target.entryId}?commit=${commit ? 1 : 0}${commit && this._imp.replace ? "&replace=1" : ""}`,
         { method: "POST", headers: { "Content-Type": "text/csv" }, body: this._imp.text }
       );
       const data = await resp.json();
@@ -675,6 +694,37 @@ class RilevatoreConsumiCard extends HTMLElement {
     }
   }
 
+  _onImportGo() {
+    const box = this.shadowRoot.querySelector(".import");
+    const replace = box.querySelector("#impReplace").checked;
+    if (replace && !window.confirm(this._t.impReplaceConfirm)) return;
+    this._imp.replace = replace;
+    this._importFile(true);
+  }
+
+  async _onReset() {
+    const target = this._target();
+    if (!target || !window.confirm(this._t.resetConfirm)) return;
+    this._busy = true;
+    this._update();
+    try {
+      await this._hass.callService(
+        "rilevatore_consumi",
+        "reset_history",
+        { confirm: true },
+        { entity_id: target.id }
+      );
+      this._imp = null;
+      this._stats = {};
+      this._setMessage(this._t.resetDone, "ok");
+    } catch (err) {
+      this._setMessage((err && err.message) || String(err), "error");
+    } finally {
+      this._busy = false;
+      this._update();
+    }
+  }
+
   _cancelImport() {
     this._imp = null;
     this._update();
@@ -684,6 +734,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     const box = this.shadowRoot.querySelector(".import");
     const imp = this._imp && this._imp.summary;
     if (!imp) {
+      box.querySelector("#impReplace").checked = false;
       box.classList.add("hidden");
       return;
     }
@@ -702,6 +753,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     if (imp.ignored_rows) html += `<p class="warn">${t.impIgnored} ${imp.ignored_rows}</p>`;
     box.querySelector("#impTitle b").textContent = t.importTitle;
     box.querySelector("#impBody").innerHTML = html;
+    box.querySelector("#impReplaceText").textContent = t.impReplace;
     box.querySelector("#impGo").textContent = t.import;
     box.querySelector("#impGo").disabled = this._busy;
     box.querySelector("#impCancel").textContent = t.cancel;
