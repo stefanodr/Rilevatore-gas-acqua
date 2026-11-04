@@ -285,3 +285,35 @@ async def test_read_from_photo_service_needs_media(hass: HomeAssistant) -> None:
             blocking=True,
             return_response=True,
         )
+
+
+async def test_last_proposal_can_be_fetched_after_reload(
+    hass: HomeAssistant, hass_client
+) -> None:
+    """Se la pagina si ricarica dopo la fotocamera, la card recupera l'ultima proposta."""
+    from datetime import timedelta  # noqa: PLC0415
+
+    from homeassistant.util import dt as dt_util  # noqa: PLC0415
+
+    entry = await _setup(hass)
+    client = await hass_client()
+    url = f"/api/rilevatore_consumi/photo/{entry.entry_id}"
+
+    resp = await client.get(url)
+    assert resp.status == 200
+    assert (await resp.json()) == {"proposal": None}  # ancora nessuna foto
+
+    with patch(GENERATE, _ai({"readable": True, "reading": 5730})):
+        assert (await _post(client, entry)).status == 200
+    data = await (await client.get(url)).json()
+    assert data["proposal"]["reading"] == 5730
+    assert data["proposal"]["readable"] is True
+    assert "at" in data["proposal"]
+
+    # dopo 10 minuti la proposta non è più valida
+    meter = entry.runtime_data
+    meter.last_proposal_at = dt_util.utcnow() - timedelta(minutes=11)
+    assert (await (await client.get(url)).json()) == {"proposal": None}
+
+    resp = await client.get("/api/rilevatore_consumi/photo/inesistente")
+    assert resp.status == 404

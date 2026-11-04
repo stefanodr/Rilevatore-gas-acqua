@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -112,6 +112,10 @@ class Meter:
         self.baselines: dict[str, dict[str, Any]] = {}
         self.log: list[dict[str, Any]] = []
         self.photo: PhotoImage | None = None
+        # Ultima proposta da foto, solo in memoria: la card la recupera se la pagina
+        # viene ricaricata mentre la foto veniva analizzata (succede dopo la fotocamera)
+        self.last_proposal: dict[str, Any] | None = None
+        self.last_proposal_at: datetime | None = None
         self._listeners: list[Callable[[], None]] = []
 
     # ------------------------------------------------------------------ proprietà
@@ -478,7 +482,18 @@ class Meter:
                 translation_key="ai_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
-        return self._build_proposal(result.data)
+        proposal = self._build_proposal(result.data)
+        self.last_proposal = proposal
+        self.last_proposal_at = dt_util.utcnow()
+        return proposal
+
+    def recent_proposal(self, max_age: timedelta = timedelta(minutes=10)) -> dict[str, Any] | None:
+        """Ultima proposta da foto, se recente."""
+        if self.last_proposal is None or self.last_proposal_at is None:
+            return None
+        if dt_util.utcnow() - self.last_proposal_at > max_age:
+            return None
+        return {**self.last_proposal, "at": self.last_proposal_at.isoformat()}
 
     def _build_proposal(self, data: Any) -> dict[str, Any]:
         """Trasforma la risposta dell'AI in una proposta con eventuali avvisi."""

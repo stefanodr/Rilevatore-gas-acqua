@@ -31,6 +31,10 @@ const TEXTS = {
     save: "Salva",
     photo: "Foto",
     reading_photo: "Leggo la foto…",
+    noPhoto: "Nessuna foto ricevuta dalla fotocamera. Riprova, oppure scatta con l'app Fotocamera e scegli la foto dalla galleria.",
+    photoLost: "La pagina si è ricaricata mentre usavi la fotocamera e la foto non è arrivata. Riprova, oppure scatta con l'app Fotocamera e scegli la foto dalla galleria.",
+    photoRecovering: "Recupero il risultato della foto…",
+    photoNoResult: "Non ho ricevuto il risultato della foto. Riprova, oppure scegli la foto dalla galleria.",
     proposed: "Valore letto dalla foto",
     check: "Controlla il valore",
     confirm: "Conferma",
@@ -95,6 +99,10 @@ const TEXTS = {
     save: "Save",
     photo: "Photo",
     reading_photo: "Reading the photo…",
+    noPhoto: "No photo received from the camera. Try again, or take it with the Camera app and pick it from the gallery.",
+    photoLost: "The page reloaded while you were using the camera and the photo did not arrive. Try again, or take it with the Camera app and pick it from the gallery.",
+    photoRecovering: "Recovering the photo result…",
+    photoNoResult: "I did not receive the photo result. Try again, or pick the photo from the gallery.",
     proposed: "Value read from the photo",
     check: "Check the value",
     confirm: "Confirm",
@@ -161,6 +169,76 @@ class RilevatoreConsumiCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._update();
+    if (!this._recovered && this._hass && this._state && this._state()) {
+      this._recovered = true;
+      this._recoverPhoto();
+    }
+  }
+
+  // Dopo la fotocamera l'app Android può ricaricare la pagina: lo stato della card
+  // va perso senza errori. Un promemoria in sessionStorage permette di recuperarlo.
+  get _flagKey() {
+    return `rilevatore_consumi_photo_${this._config.entity || this._config.meter}`;
+  }
+
+  _flag(stage) {
+    try {
+      if (stage) {
+        sessionStorage.setItem(this._flagKey, JSON.stringify({ stage, t: Date.now() }));
+      } else {
+        sessionStorage.removeItem(this._flagKey);
+      }
+    } catch (_e) {
+      /* sessionStorage non disponibile: nessun recupero */
+    }
+  }
+
+  _readFlag() {
+    try {
+      const f = JSON.parse(sessionStorage.getItem(this._flagKey) || "null");
+      return f && Date.now() - f.t < 5 * 60 * 1000 ? f : null;
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  async _recoverPhoto() {
+    const flag = this._readFlag();
+    if (!flag || this._busy) {
+      if (!flag) this._flag(null);
+      return;
+    }
+    const state = this._state();
+    const entryId = state && state.attributes && state.attributes.entry_id;
+    if (!entryId) return;
+    if (flag.stage === "camera") {
+      this._flag(null);
+      this._setMessage(this._t.photoLost, "error");
+      return;
+    }
+    this._setMessage(this._t.photoRecovering, "");
+    for (let i = 0; i < 20; i++) {
+      try {
+        const resp = await this._hass.fetchWithAuth(`/api/rilevatore_consumi/photo/${entryId}`);
+        const data = await resp.json();
+        const p = data && data.proposal;
+        if (p && Date.parse(p.at) >= flag.t - 5000) {
+          this._flag(null);
+          if (!p.readable || p.reading === null || p.reading === undefined) {
+            this._setMessage(this._t.unreadable, "error");
+          } else {
+            this._pending = { value: p.reading, warning: p.warning, photoUrl: null, fresh: true };
+            this._setMessage("", "");
+          }
+          return;
+        }
+      } catch (_e) {
+        /* riprova */
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    this._flag(null);
+    this._setMessage(this._t.photoNoResult, "error");
   }
 
   getCardSize() {
@@ -309,7 +387,11 @@ class RilevatoreConsumiCard extends HTMLElement {
       </ha-card>`;
     const $ = (s) => this.shadowRoot.querySelector(s);
     $("#save").addEventListener("click", () => this._onSave());
-    $("#photo").addEventListener("click", () => $("#file").click());
+    $("#photo").addEventListener("click", () => {
+      this._flag("camera");
+      $("#file").click();
+    });
+    $("#file").addEventListener("cancel", () => this._flag(null));
     $("#file").addEventListener("change", (ev) => this._onFile(ev));
     $("#confirm").addEventListener("click", () => this._onConfirm());
     $("#cancel").addEventListener("click", () => this._cancel());
@@ -863,10 +945,15 @@ class RilevatoreConsumiCard extends HTMLElement {
   async _onFile(ev) {
     const file = ev.target.files && ev.target.files[0];
     ev.target.value = "";
-    if (!file) return;
+    if (!file || !file.size) {
+      this._flag(null);
+      this._setMessage(this._t.noPhoto, "error");
+      return;
+    }
     const target = this._target();
     if (!target) return;
     this._busy = true;
+    this._flag("sent");
     this._setMessage(this._t.reading_photo, "");
     try {
       const blob = await this._downscale(file);
@@ -891,6 +978,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     } catch (err) {
       this._setMessage((err && err.message) || String(err), "error");
     } finally {
+      this._flag(null);
       this._busy = false;
       this._update();
     }

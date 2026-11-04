@@ -24,6 +24,18 @@ class PhotoView(HomeAssistantView):
     name = "api:rilevatore_consumi:photo"
     requires_auth = True
 
+    async def get(self, request: web.Request, entry_id: str) -> web.Response:
+        """Ultima proposta da foto (se recente): serve se la pagina si è ricaricata."""
+        hass = request.app[KEY_HASS]
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
+        ):
+            return self.json_message("Contatore non trovato", HTTPStatus.NOT_FOUND)
+        return self.json({"proposal": entry.runtime_data.recent_proposal()})
+
     async def post(self, request: web.Request, entry_id: str) -> web.Response:
         """Legge la foto e restituisce la proposta di lettura (non salva nulla)."""
         hass = request.app[KEY_HASS]
