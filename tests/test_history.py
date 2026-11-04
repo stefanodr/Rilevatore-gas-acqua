@@ -380,3 +380,30 @@ async def test_reset_history_also_purges_state_history(
     )
     await async_wait_recording_done(hass)
     assert await instance.async_add_executor_job(_states) == []
+
+
+async def test_reset_history_retries_until_statistics_are_gone(
+    recorder_mock: Recorder, hass: HomeAssistant
+) -> None:
+    """Se dopo la cancellazione restano statistiche, si riprova; poi si segnala."""
+    from unittest.mock import patch  # noqa: PLC0415
+
+    await _setup(hass)
+    path = "custom_components.rilevatore_consumi.history._ids_with_old_rows"
+    with patch(path, side_effect=[[NEW], []]) as check, patch(
+        "custom_components.rilevatore_consumi.history.asyncio.sleep"
+    ):
+        await hass.services.async_call(
+            DOMAIN, "reset_history", {"confirm": True},
+            target={"entity_id": NEW}, blocking=True,
+        )
+    assert check.call_count == 2  # primo tentativo incompleto, secondo riuscito
+
+    with patch(path, return_value=[NEW]) as check, patch(
+        "custom_components.rilevatore_consumi.history.asyncio.sleep"
+    ), pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "reset_history", {"confirm": True},
+            target={"entity_id": NEW}, blocking=True,
+        )
+    assert check.call_count == 3  # dopo tre tentativi lo dice, non finge di aver finito

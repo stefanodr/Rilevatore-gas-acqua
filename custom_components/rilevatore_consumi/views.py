@@ -142,7 +142,13 @@ class ImportView(HomeAssistantView):
             from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
 
             await meter.async_reset(readings[-1][1], log_reading=False)
-            await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
+            try:
+                await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
+            except HomeAssistantError as err:
+                return self.json(
+                    {"code": "reset_failed", "message": str(err)},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
         result = await meter.async_apply_history(readings)
         statistics: dict[str, Any] | None = None
         if total_id and "recorder" in hass.config.components:

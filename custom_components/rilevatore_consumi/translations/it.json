@@ -172,6 +172,9 @@
     },
     "confirm_required": {
       "message": "Per cancellare lo storico attiva la conferma."
+    },
+    "reset_incomplete": {
+      "message": "L'azzeramento non è stato completato: restano statistiche per {ids}. Riprova."
     }
   },
   "issues": {

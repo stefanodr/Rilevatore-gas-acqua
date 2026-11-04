@@ -172,6 +172,9 @@
     },
     "confirm_required": {
       "message": "Turn on the confirmation to delete the history."
+    },
+    "reset_incomplete": {
+      "message": "The reset was not completed: statistics remain for {ids}. Try again."
     }
   },
   "issues": {

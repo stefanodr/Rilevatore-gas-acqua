@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -188,6 +189,26 @@ def meter_sensor_ids(hass: HomeAssistant, entry_id: str) -> list[str]:
     ]
 
 
+CLEAR_ATTEMPTS = 3
+
+
+def _ids_with_old_rows(hass: HomeAssistant, statistic_ids: list[str]) -> list[str]:
+    """Sensori che hanno ancora statistiche più vecchie di un'ora (thread del recorder).
+
+    L'ora corrente si ignora: il sensore in funzione ne scrive subito una nuova.
+    """
+    result = statistics_during_period(
+        hass,
+        dt_util.utc_from_timestamp(0),
+        dt_util.utcnow() - timedelta(hours=1),
+        set(statistic_ids),
+        "hour",
+        None,
+        {"sum"},
+    )
+    return [sid for sid in statistic_ids if result.get(sid)]
+
+
 async def async_clear_history(hass: HomeAssistant, statistic_ids: list[str]) -> None:
     """Cancella statistiche (lungo e breve termine) e cronologia degli stati dei sensori.
 
@@ -198,8 +219,25 @@ async def async_clear_history(hass: HomeAssistant, statistic_ids: list[str]) -> 
         return
     instance = get_instance(hass)
     await instance.async_block_till_done()
-    instance.async_clear_statistics(statistic_ids)
-    await instance.async_block_till_done()
+    # Si controlla che le statistiche siano davvero sparite e, se no, si riprova:
+    # il recorder lavora in coda e una cancellazione può non andare a buon fine
+    remaining = list(statistic_ids)
+    for attempt in range(CLEAR_ATTEMPTS):
+        instance.async_clear_statistics(remaining)
+        await instance.async_block_till_done()
+        remaining = await instance.async_add_executor_job(
+            _ids_with_old_rows, hass, remaining
+        )
+        if not remaining:
+            break
+        if attempt < CLEAR_ATTEMPTS - 1:
+            await asyncio.sleep(2)
+    else:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="reset_incomplete",
+            translation_placeholders={"ids": ", ".join(remaining)},
+        )
     await hass.services.async_call(
         "recorder",
         "purge_entities",
