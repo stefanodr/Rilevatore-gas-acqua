@@ -94,6 +94,12 @@ def _notify_done(
         detail = (
             "storico dei grafici già presente." if it else "chart history already present."
         )
+    if statistics and statistics.get("sums_fixed"):
+        detail += (
+            f" Somme della plancia Energia corrette in {statistics['sums_fixed']} punti."
+            if it
+            else f" Energy dashboard sums fixed at {statistics['sums_fixed']} points."
+        )
     message = (
         f"{entry.title}: importate {count} letture; {detail}" if it
         else f"{entry.title}: imported {count} readings; {detail}"
@@ -194,7 +200,10 @@ class ImportView(HomeAssistantView):
             result = await meter.async_apply_history(readings)
             statistics: dict[str, Any] | None = None
             if total_id and "recorder" in hass.config.components:
-                from .history import async_write_history  # noqa: PLC0415
+                from .history import (  # noqa: PLC0415
+                async_repair_sums,
+                async_write_history,
+            )
 
                 try:
                     statistics = await async_write_history(
@@ -206,6 +215,17 @@ class ImportView(HomeAssistantView):
                         statistics = {"skipped": "already_present"}
                     else:
                         statistics = {"error": str(err)}
+                if statistics is not None and "error" not in statistics:
+                    # Controllo finale: se tra storico importato e righe già scritte
+                    # dal recorder c'è un salto (barre negative in plancia Energia)
+                    # lo si ripara
+                    try:
+                        fixed = await async_repair_sums(hass, total_id, entry.title)
+                        count = fixed["hours_fixed"] + (1 if fixed["anchor_added"] else 0)
+                        if count:
+                            statistics["sums_fixed"] = count
+                    except HomeAssistantError:
+                        pass  # nessuno storico da controllare
                 await meter.async_refine_baselines()
             _notify_done(hass, entry, summary["count"], statistics)
             return self.json({**summary, **result, "committed": True, "replaced": replaced, "statistics": statistics})

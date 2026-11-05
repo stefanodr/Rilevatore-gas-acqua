@@ -415,3 +415,38 @@ async def test_import_creates_a_notification(
     assert resp.status == 200
     notifications = hass.data.get("persistent_notification", {})
     assert any("Rilevatore consumi" in str(n) for n in notifications.values())
+
+
+async def test_import_repairs_a_jump_in_the_sums(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Se dopo l'importazione le somme hanno un salto all'indietro, vengono riparate."""
+    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+        async_import_statistics,
+    )
+
+    from .test_history import _meta  # noqa: PLC0415
+
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    assert (await _post(client, entry, _csv(100), commit=True)).status == 200
+    rows = await _rows(hass, SENSOR)
+    last = rows[-1]
+    t0 = dt_util.utc_from_timestamp(last["start"]) + __import__("datetime").timedelta(hours=100)
+    state = float(last["state"])
+    # righe scritte "dal vivo" con la somma ripartita molto più in basso: salto all'indietro
+    live = [
+        {"start": t0 + __import__("datetime").timedelta(hours=i), "state": state, "sum": 3.0}
+        for i in range(5)
+    ]
+    async_import_statistics(hass, _meta(SENSOR), live)
+    await async_wait_recording_done(hass)
+    before = [float(r["sum"]) for r in await _rows(hass, SENSOR)]
+    assert before != sorted(before)
+
+    resp = await _post(client, entry, _csv(100), commit=True)
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["statistics"]["sums_fixed"] > 0
+    after = [float(r["sum"]) for r in await _rows(hass, SENSOR)]
+    assert after == sorted(after)
