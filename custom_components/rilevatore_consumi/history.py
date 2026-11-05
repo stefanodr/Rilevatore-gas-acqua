@@ -174,7 +174,9 @@ async def _async_import_chunked(
     il recorder resterebbe occupato a lungo e le richieste successive falliscono.
     """
     instance = get_instance(hass)
-    for i in range(0, len(rows), CHUNK_HOURS):
+    # Dal periodo più recente al più vecchio: se si interrompe restano i mesi che
+    # servono di più, e una nuova importazione completa la parte più vecchia.
+    for i in reversed(range(0, len(rows), CHUNK_HOURS)):
         async_import_statistics(hass, metadata, rows[i : i + CHUNK_HOURS])
         await instance.async_block_till_done()
 

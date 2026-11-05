@@ -122,6 +122,9 @@ Eliminando l'integrazione si cancellano le letture, ma le **statistiche a lungo 
 **Con la Companion app Android il pulsante 📷 permette solo di scegliere una foto già scattata.**
 L'app non ha il permesso Fotocamera (non compare nelle autorizzazioni del telefono), quindi lo scatto diretto non è disponibile. Scatta la foto con la fotocamera del telefono e poi scegli l'ultima dalla galleria con 📷 (il valore va comunque confermato), oppure apri Home Assistant in Chrome, che chiede il permesso e apre direttamente la fotocamera. Dalla v2.1.1, se dopo lo scatto la pagina si ricarica da sola, la card recupera il risultato della foto o avvisa che non è arrivata.
 
+**Posso importare il file dell'acqua e quello del gas insieme?**
+Sì, sono contatori indipendenti e non si disturbano. Per lo stesso contatore invece l'importazione parte una alla volta: una seconda viene rifiutata finché la prima non finisce. L'importazione di anni di letture può richiedere alcuni minuti: la card mostra "importazione in corso" e a fine lavoro compare una notifica in Home Assistant. Se un'importazione si interrompe, ripeti la stessa operazione: completa la parte mancante.
+
 ### Servizi
 
 - `rilevatore_consumi.set_reading` — `reading`, `force`, `replace_meter`
@@ -243,6 +246,9 @@ Deleting the integration removes the readings, but the **long-term statistics** 
 
 **With the Android Companion app the 📷 button only lets me pick an existing photo.**
 The app has no Camera permission (it does not appear in the phone's permissions), so direct capture is not available. Take the picture with the phone camera and then pick the latest one from the gallery with 📷 (the value still has to be confirmed), or open Home Assistant in Chrome, which asks for the permission and opens the camera directly. From v2.1.1, if the page reloads by itself after the shot, the card recovers the photo result or tells you it did not arrive.
+
+**Can I import the water file and the gas file at the same time?**
+Yes, they are independent meters and do not interfere. For the same meter, instead, imports run one at a time: a second one is refused until the first finishes. Importing years of readings can take a few minutes: the card shows "import in progress" and at the end a notification appears in Home Assistant. If an import is interrupted, repeat the same operation: it completes the missing part.
 
 ### Services
 

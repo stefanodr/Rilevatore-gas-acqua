@@ -64,6 +64,8 @@ const TEXTS = {
     importedStats: "storico ricostruito: %h% ore",
     importStatsPresent: "lo storico dei grafici era già presente, nessuna modifica",
     importStatsError: "Letture importate, ma lo storico dei grafici non è stato scritto:",
+    importing: "Importazione in corso, può richiedere alcuni minuti: non chiudere la pagina…",
+    errRunning: "Un'importazione di questo contatore è già in corso: attendi che finisca.",
     errEmpty: "Il file è vuoto.",
     errNoReadings: "Non ho trovato letture valide. Servono almeno una colonna con la data e una con il valore (per esempio data;lettura).",
     errMultiple: "Il file contiene più entità, tienine una sola:",
@@ -129,6 +131,8 @@ const TEXTS = {
     importedStats: "history rebuilt: %h% hours",
     importStatsPresent: "the chart history was already there, nothing changed",
     importStatsError: "Readings imported, but the chart history was not written:",
+    importing: "Import in progress, it may take a few minutes: do not close the page…",
+    errRunning: "An import for this meter is already running: wait for it to finish.",
     errEmpty: "The file is empty.",
     errNoReadings: "No valid readings found. A date column and a value column are needed (e.g. date;reading).",
     errMultiple: "The file contains several entities, keep just one:",
@@ -712,7 +716,7 @@ class RilevatoreConsumiCard extends HTMLElement {
 
   _importError(data) {
     const t = this._t;
-    const map = { empty: t.errEmpty, no_readings: t.errNoReadings, too_large: t.errTooLarge };
+    const map = { empty: t.errEmpty, no_readings: t.errNoReadings, too_large: t.errTooLarge, import_running: t.errRunning };
     if (data && data.code === "multiple_entities") {
       return `${t.errMultiple} ${(data.entities || []).join(", ")}`;
     }
@@ -723,7 +727,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     const target = this._target();
     if (!target || !this._imp) return;
     this._busy = true;
-    this._setMessage("", "");
+    this._setMessage(commit ? this._t.importing : "", "");
+    this._update();
     try {
       const resp = await this._hass.fetchWithAuth(
         `/api/rilevatore_consumi/import/${target.entryId}?commit=${commit ? 1 : 0}${commit && this._imp.replace ? "&replace=1" : ""}`,

@@ -9,6 +9,7 @@ from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.http import KEY_HASS
@@ -69,6 +70,40 @@ class PhotoView(HomeAssistantView):
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return self.json(proposal)
+
+
+def _notify_done(
+    hass: HomeAssistant, entry: Any, count: int, statistics: dict[str, Any] | None
+) -> None:
+    """Avviso a fine importazione, visibile anche se la pagina si è ricaricata."""
+    from homeassistant.components import persistent_notification  # noqa: PLC0415
+
+    it = str(hass.config.language).startswith("it")
+    if statistics and statistics.get("error"):
+        detail = (
+            "lo storico dei grafici NON è stato scritto: " if it
+            else "the chart history was NOT written: "
+        ) + str(statistics["error"])
+    elif statistics and statistics.get("imported_hours") is not None:
+        hours = statistics["imported_hours"] + statistics.get("adjusted_hours", 0)
+        detail = (
+            f"storico dei grafici ricostruito ({hours} ore)." if it
+            else f"chart history rebuilt ({hours} hours)."
+        )
+    else:
+        detail = (
+            "storico dei grafici già presente." if it else "chart history already present."
+        )
+    message = (
+        f"{entry.title}: importate {count} letture; {detail}" if it
+        else f"{entry.title}: imported {count} readings; {detail}"
+    )
+    persistent_notification.async_create(
+        hass,
+        message,
+        title="Rilevatore consumi",
+        notification_id=f"{DOMAIN}_import_{entry.entry_id}",
+    )
 
 
 class ImportView(HomeAssistantView):
@@ -135,34 +170,44 @@ class ImportView(HomeAssistantView):
         if request.query.get("commit") != "1":
             return self.json(summary)
 
-        replaced = request.query.get("replace") == "1"
-        if replaced:
-            # Sostituisce tutto: i dati esistenti (letture, consumi, statistiche,
-            # cronologia) vengono cancellati e si riparte dal file
-            from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
+        if meter.import_running:
+            return self.json(
+                {"code": "import_running", "message": "Importazione già in corso"},
+                HTTPStatus.CONFLICT,
+            )
+        meter.import_running = True
+        try:
+            replaced = request.query.get("replace") == "1"
+            if replaced:
+                # Sostituisce tutto: i dati esistenti (letture, consumi, statistiche,
+                # cronologia) vengono cancellati e si riparte dal file
+                from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
 
-            await meter.async_reset(readings[-1][1], log_reading=False)
-            try:
-                await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
-            except HomeAssistantError as err:
-                return self.json(
-                    {"code": "reset_failed", "message": str(err)},
-                    HTTPStatus.INTERNAL_SERVER_ERROR,
-                )
-        result = await meter.async_apply_history(readings)
-        statistics: dict[str, Any] | None = None
-        if total_id and "recorder" in hass.config.components:
-            from .history import async_write_history  # noqa: PLC0415
+                await meter.async_reset(readings[-1][1], log_reading=False)
+                try:
+                    await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
+                except HomeAssistantError as err:
+                    return self.json(
+                        {"code": "reset_failed", "message": str(err)},
+                        HTTPStatus.INTERNAL_SERVER_ERROR,
+                    )
+            result = await meter.async_apply_history(readings)
+            statistics: dict[str, Any] | None = None
+            if total_id and "recorder" in hass.config.components:
+                from .history import async_write_history  # noqa: PLC0415
 
-            try:
-                statistics = await async_write_history(
-                    hass, total_id, hourly_rows(readings), entry.title
-                )
-            except HomeAssistantError as err:
-                if getattr(err, "translation_key", None) == "nothing_to_import":
-                    # Lo storico dei grafici c'è già: non è un errore
-                    statistics = {"skipped": "already_present"}
-                else:
-                    statistics = {"error": str(err)}
-            await meter.async_refine_baselines()
-        return self.json({**summary, **result, "committed": True, "replaced": replaced, "statistics": statistics})
+                try:
+                    statistics = await async_write_history(
+                        hass, total_id, hourly_rows(readings), entry.title
+                    )
+                except HomeAssistantError as err:
+                    if getattr(err, "translation_key", None) == "nothing_to_import":
+                        # Lo storico dei grafici c'è già: non è un errore
+                        statistics = {"skipped": "already_present"}
+                    else:
+                        statistics = {"error": str(err)}
+                await meter.async_refine_baselines()
+            _notify_done(hass, entry, summary["count"], statistics)
+            return self.json({**summary, **result, "committed": True, "replaced": replaced, "statistics": statistics})
+        finally:
+            meter.import_running = False

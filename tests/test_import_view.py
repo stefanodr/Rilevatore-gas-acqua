@@ -304,3 +304,114 @@ async def test_import_with_replace_discards_existing_data(
     rows = await _rows(hass, SENSOR)
     assert rows and max(float(r["state"]) for r in rows) <= 4100.0 + 1e-6
     assert min(float(r["state"]) for r in rows) >= 4000.0 - 1e-6
+
+
+def _csv(start_value: int, years: int = 2) -> bytes:
+    """CSV mensile di prova: una lettura al mese a partire dal 2024."""
+    lines = ["data;lettura"]
+    value = start_value
+    for y in range(2024, 2024 + years):
+        for m in range(1, 13):
+            lines.append(f"01/{m:02d}/{y};{value}")
+            value += 5
+    return ("\n".join(lines) + "\n").encode()
+
+
+async def _two_meters(hass, clock):
+    await hass.config.async_set_time_zone("Europe/Rome")
+    clock.set("2026-10-27 12:00:00+01:00")
+    gas = make_entry(5728, "gas", "Gas")
+    water = make_entry(364, "water", "Acqua")
+    for e in (gas, water):
+        e.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(e.entry_id)
+    await hass.async_block_till_done()
+    return gas, water
+
+
+async def test_two_meters_imported_at_the_same_time(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Importare acqua e gas insieme, senza aspettare, non si disturba a vicenda."""
+    import asyncio  # noqa: PLC0415
+
+    gas, water = await _two_meters(hass, clock)
+    client = await hass_client()
+    r_gas, r_water = await asyncio.gather(
+        _post(client, gas, _csv(1000), commit=True),
+        _post(client, water, _csv(10), commit=True),
+    )
+    assert r_gas.status == 200 and r_water.status == 200
+    gas_rows = await _rows(hass, "sensor.gas_meter_reading")
+    water_rows = await _rows(hass, "sensor.acqua_meter_reading")
+    assert gas_rows and water_rows
+    # nessuna mescolanza: ogni contatore ha solo i propri valori
+    assert max(float(r["state"]) for r in gas_rows) <= 1000 + 24 * 5
+    assert min(float(r["state"]) for r in gas_rows) >= 1000
+    assert max(float(r["state"]) for r in water_rows) <= 10 + 24 * 5
+    assert min(float(r["state"]) for r in water_rows) >= 10
+    assert len(gas_rows) == len(water_rows)
+
+
+async def test_second_import_of_the_same_meter_is_refused(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Due importazioni insieme sullo stesso contatore: la seconda viene rifiutata."""
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    entry.runtime_data.import_running = True
+    resp = await _post(client, entry, _csv(100), commit=True)
+    assert resp.status == 409
+    assert (await resp.json())["code"] == "import_running"
+    # l'anteprima resta sempre possibile
+    assert (await _post(client, entry, _csv(100))).status == 200
+    entry.runtime_data.import_running = False
+    assert (await _post(client, entry, _csv(100), commit=True)).status == 200
+    assert entry.runtime_data.import_running is False
+
+
+async def test_interrupted_import_keeps_recent_months_and_can_be_completed(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Un'interruzione lascia i mesi più recenti; una nuova importazione completa il resto."""
+    from custom_components.rilevatore_consumi import history as H  # noqa: PLC0415
+
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    body = _csv(100, years=2)
+    real = H.async_import_statistics
+    calls = {"n": 0}
+
+    def flaky(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] > 8:
+            raise RuntimeError("interrotto")
+        return real(*args, **kwargs)
+
+    with patch.object(H, "async_import_statistics", flaky):
+        resp = await _post(client, entry, body, commit=True)
+    assert resp.status == 500
+    partial = await _rows(hass, SENSOR)
+    assert 0 < len(partial)
+    last_partial = partial[-1]["start"]
+
+    # la parte più recente è presente; riprovando si completa la più vecchia
+    resp = await _post(client, entry, body, commit=True)
+    assert resp.status == 200
+    full = await _rows(hass, SENSOR)
+    assert len(full) > len(partial)
+    assert full[-1]["start"] == last_partial
+    sums = [float(r["sum"]) for r in full]
+    assert sums == sorted(sums)  # continuo, senza salti all'indietro
+
+
+async def test_import_creates_a_notification(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """A fine importazione compare un avviso in Home Assistant."""
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    resp = await _post(client, entry, _csv(100), commit=True)
+    assert resp.status == 200
+    notifications = hass.data.get("persistent_notification", {})
+    assert any("Rilevatore consumi" in str(n) for n in notifications.values())

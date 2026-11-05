@@ -102,6 +102,7 @@ class Meter:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Inizializza il contatore."""
         self.hass = hass
+        self.import_running = False  # un solo import alla volta per contatore
         self.entry = entry
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
