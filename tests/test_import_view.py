@@ -450,3 +450,41 @@ async def test_import_repairs_a_jump_in_the_sums(
     assert data["statistics"]["sums_fixed"] > 0
     after = [float(r["sum"]) for r in await _rows(hass, SENSOR)]
     assert after == sorted(after)
+
+
+async def test_import_continues_when_the_request_is_cancelled(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Pagina chiusa a metà: l'importazione prosegue e termina comunque."""
+    import asyncio  # noqa: PLC0415
+
+    from custom_components.rilevatore_consumi import history as H  # noqa: PLC0415
+
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    meter = entry.runtime_data
+    gate = asyncio.Event()
+    started = asyncio.Event()
+    real = H.async_write_history
+
+    async def slow(*args, **kwargs):
+        started.set()
+        await gate.wait()
+        return await real(*args, **kwargs)
+
+    with patch.object(H, "async_write_history", slow):
+        request = asyncio.ensure_future(_post(client, entry, _csv(100), commit=True))
+        await asyncio.wait_for(started.wait(), 10)
+        assert meter.import_running is True
+        request.cancel()  # come una pagina che si chiude o si ricarica
+        await asyncio.gather(request, return_exceptions=True)
+        assert meter.import_running is True  # il lavoro non è stato interrotto
+        gate.set()
+        for _ in range(1200):
+            if not meter.import_running:
+                break
+            await asyncio.sleep(0.05)
+    assert meter.import_running is False
+    assert len(await _rows(hass, SENSOR)) > 0
+    notifications = hass.data.get("persistent_notification", {})
+    assert any("importate" in str(n) or "imported" in str(n) for n in notifications.values())

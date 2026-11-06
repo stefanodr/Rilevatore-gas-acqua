@@ -1,4 +1,4 @@
-# Rilevatore consumi gas / acqua · Gas / water meter reader (v2.1.3)
+# Rilevatore consumi gas / acqua · Gas / water meter reader (v2.1.4)
 
 🇮🇹 [Italiano](#italiano) · 🇬🇧 [English](#english)
 

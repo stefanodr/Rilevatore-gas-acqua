@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from http import HTTPStatus
 from typing import Any
 
@@ -70,6 +72,30 @@ class PhotoView(HomeAssistantView):
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return self.json(proposal)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _notify_failed(hass: HomeAssistant, entry: Any, reason: str) -> None:
+    """Avviso se l'importazione non è stata completata."""
+    from homeassistant.components import persistent_notification  # noqa: PLC0415
+
+    if str(hass.config.language).startswith("it"):
+        message = (
+            f"{entry.title}: importazione NON completata ({reason}). "
+            "Ripeti l'importazione: completa la parte mancante."
+        )
+    else:
+        message = (
+            f"{entry.title}: import NOT completed ({reason}). "
+            "Repeat the import: it completes the missing part."
+        )
+    persistent_notification.async_create(
+        hass,
+        message,
+        title="Rilevatore consumi",
+        notification_id=f"{DOMAIN}_import_{entry.entry_id}",
+    )
 
 
 def _notify_done(
@@ -182,8 +208,31 @@ class ImportView(HomeAssistantView):
                 HTTPStatus.CONFLICT,
             )
         meter.import_running = True
+        # L'importazione gira in un'attività di sfondo: Home Assistant annulla la
+        # richiesta se la pagina si chiude o si ricarica, ma il lavoro deve finire
+        task = entry.async_create_background_task(
+            hass,
+            self._commit(
+                hass, entry, meter, total_id, readings, summary,
+                request.query.get("replace") == "1",
+            ),
+            f"{DOMAIN}_import_{entry_id}",
+        )
+        status, payload = await asyncio.shield(task)
+        return self.json(payload, status)
+
+    async def _commit(
+        self,
+        hass: HomeAssistant,
+        entry: Any,
+        meter: Any,
+        total_id: str | None,
+        readings: list,
+        summary: dict[str, Any],
+        replaced: bool,
+    ) -> tuple[HTTPStatus, dict[str, Any]]:
+        """Scrive letture e storico; sempre fino in fondo, anche senza la pagina."""
         try:
-            replaced = request.query.get("replace") == "1"
             if replaced:
                 # Sostituisce tutto: i dati esistenti (letture, consumi, statistiche,
                 # cronologia) vengono cancellati e si riparte dal file
@@ -191,19 +240,22 @@ class ImportView(HomeAssistantView):
 
                 await meter.async_reset(readings[-1][1], log_reading=False)
                 try:
-                    await async_clear_history(hass, meter_sensor_ids(hass, entry_id))
-                except HomeAssistantError as err:
-                    return self.json(
-                        {"code": "reset_failed", "message": str(err)},
-                        HTTPStatus.INTERNAL_SERVER_ERROR,
+                    await async_clear_history(
+                        hass, meter_sensor_ids(hass, entry.entry_id)
                     )
+                except HomeAssistantError as err:
+                    _notify_failed(hass, entry, str(err))
+                    return HTTPStatus.INTERNAL_SERVER_ERROR, {
+                        "code": "reset_failed",
+                        "message": str(err),
+                    }
             result = await meter.async_apply_history(readings)
             statistics: dict[str, Any] | None = None
             if total_id and "recorder" in hass.config.components:
                 from .history import (  # noqa: PLC0415
-                async_repair_sums,
-                async_write_history,
-            )
+                    async_repair_sums,
+                    async_write_history,
+                )
 
                 try:
                     statistics = await async_write_history(
@@ -228,6 +280,19 @@ class ImportView(HomeAssistantView):
                         pass  # nessuno storico da controllare
                 await meter.async_refine_baselines()
             _notify_done(hass, entry, summary["count"], statistics)
-            return self.json({**summary, **result, "committed": True, "replaced": replaced, "statistics": statistics})
+            return HTTPStatus.OK, {
+                **summary,
+                **result,
+                "committed": True,
+                "replaced": replaced,
+                "statistics": statistics,
+            }
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.exception("Importazione non completata")
+            _notify_failed(hass, entry, str(err) or type(err).__name__)
+            return HTTPStatus.INTERNAL_SERVER_ERROR, {
+                "code": "import_failed",
+                "message": str(err) or type(err).__name__,
+            }
         finally:
             meter.import_running = False
