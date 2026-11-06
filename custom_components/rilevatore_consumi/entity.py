@@ -78,6 +78,10 @@ class RilevatoreEntity(Entity):
                 translation_domain=DOMAIN, translation_key="confirm_required"
             )
         ids = meter_sensor_ids(self.hass, self.meter.entry.entry_id)
-        await self.meter.async_reset(reading)
+        # Senza `reading` la lettura attuale (probabilmente errata) viene sostituita
+        # da quella più recente del prossimo file importato
+        await self.meter.async_reset(
+            reading, log_reading=reading is not None, adopt_import=reading is None
+        )
         await async_clear_history(self.hass, ids)
         return {"cleared": ids, "reading": self.meter.reading}

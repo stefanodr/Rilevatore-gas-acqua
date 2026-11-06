@@ -134,7 +134,7 @@
         },
         "reading": {
           "name": "Lettura di ripartenza",
-          "description": "Facoltativa: nuova lettura attuale (solo la parte intera). Se vuota resta quella attuale."
+          "description": "Facoltativa: nuova lettura attuale (solo la parte intera). Se vuota, la lettura attuale viene presa dall'ultima riga del prossimo file importato."
         }
       }
     }

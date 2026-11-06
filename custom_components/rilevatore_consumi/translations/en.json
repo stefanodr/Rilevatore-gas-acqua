@@ -134,7 +134,7 @@
         },
         "reading": {
           "name": "Restart reading",
-          "description": "Optional: new current reading (integer part only). If empty the current one is kept."
+          "description": "Optional: new current reading (integer part only). If empty, the current reading is taken from the last row of the next imported file."
         }
       }
     }

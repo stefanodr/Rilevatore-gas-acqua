@@ -488,3 +488,26 @@ async def test_import_continues_when_the_request_is_cancelled(
     assert len(await _rows(hass, SENSOR)) > 0
     notifications = hass.data.get("persistent_notification", {})
     assert any("importate" in str(n) or "imported" in str(n) for n in notifications.values())
+
+
+async def test_reset_without_reading_takes_current_from_next_import(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """Azzeramento senza `reading`: la lettura attuale arriva dal file importato dopo."""
+    from custom_components.rilevatore_consumi.const import DOMAIN  # noqa: PLC0415
+
+    entry = await _setup(hass, clock, reading=9000)  # lettura attuale errata, alta
+    client = await hass_client()
+    meter = entry.runtime_data
+    await hass.services.async_call(
+        DOMAIN, "reset_history", {"confirm": True},
+        target={"entity_id": SENSOR}, blocking=True,
+    )
+    assert meter.reading == 9000 and meter.log == []
+    resp = await _post(client, entry, _csv(100), commit=True)
+    assert resp.status == 200
+    assert meter.reading == 100 + 5 * 23  # ultima riga del file
+    assert meter.adopt_import is False
+    # un secondo file con una lettura più bassa non cambia più la lettura attuale
+    await _post(client, entry, _csv(50), commit=True)
+    assert meter.reading == 100 + 5 * 23

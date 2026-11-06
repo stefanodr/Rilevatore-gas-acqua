@@ -112,6 +112,8 @@ class Meter:
         self.updated: datetime | None = None
         self.baselines: dict[str, dict[str, Any]] = {}
         self.log: list[dict[str, Any]] = []
+        # Dopo un azzeramento senza lettura: la prima importazione fissa la lettura attuale
+        self.adopt_import = False
         self.photo: PhotoImage | None = None
         # Ultima proposta da foto, solo in memoria: la card la recupera se la pagina
         # viene ricaricata mentre la foto veniva analizzata (succede dopo la fotocamera)
@@ -146,6 +148,7 @@ class Meter:
             self.updated = dt_util.parse_datetime(updated) if updated else None
             self.baselines = data.get("baselines", {})
             self.log = list(data.get("log", []))
+            self.adopt_import = bool(data.get("adopt_import", False))
             if not self.log and self.reading is not None:
                 self.log = [self._log_item(self.reading, self.updated or now)]
         else:
@@ -251,6 +254,7 @@ class Meter:
             "updated": self.updated.isoformat() if self.updated else None,
             "baselines": self.baselines,
             "log": self.log,
+            "adopt_import": self.adopt_import,
         }
 
     @staticmethod
@@ -274,6 +278,7 @@ class Meter:
             )
         now = dt_util.now()
         self._roll(now)
+        self.adopt_import = False
         current = self.reading
         if current is not None and not replace:
             if new < current:
@@ -309,7 +314,11 @@ class Meter:
         self._notify()
 
     async def async_reset(
-        self, reading: float | None = None, *, log_reading: bool = True
+        self,
+        reading: float | None = None,
+        *,
+        log_reading: bool = True,
+        adopt_import: bool = False,
     ) -> None:
         """Cancella elenco letture e basi di calcolo; riparte da `reading` (o da quella attuale)."""
         now = dt_util.now()
@@ -325,6 +334,7 @@ class Meter:
         self.previous = None
         self.updated = now
         self.baselines = {}
+        self.adopt_import = adopt_import
         self.log = (
             [self._log_item(self.reading, now)]
             if log_reading and self.reading is not None
@@ -362,7 +372,7 @@ class Meter:
         # Lettura attuale: solo se il file ne contiene una più recente e non più bassa
         newest_time, newest_value = readings[-1]
         reading_updated = False
-        if self.reading is None or (
+        if self.reading is None or self.adopt_import or (
             (self.updated is None or newest_time > self.updated)
             and newest_value >= self.reading
         ):
@@ -370,6 +380,7 @@ class Meter:
             self.reading = newest_value
             self.updated = newest_time
             reading_updated = True
+        self.adopt_import = False
         self._roll(now)
 
         # Consumi dei periodi in corso: la base è la lettura all'inizio del periodo
