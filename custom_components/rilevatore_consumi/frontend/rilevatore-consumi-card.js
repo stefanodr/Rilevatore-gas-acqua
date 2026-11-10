@@ -65,6 +65,10 @@ const TEXTS = {
     importStatsPresent: "lo storico dei grafici era già presente, nessuna modifica",
     importStatsError: "Letture importate, ma lo storico dei grafici non è stato scritto:",
     importing: "Importazione in corso, può richiedere alcuni minuti (anche 10-15 con molti anni di storico). Puoi lasciare la pagina: a fine lavoro arriva una notifica…",
+    progClearing: "Cancellazione dei dati esistenti…",
+    progWriting: "Ricostruzione dello storico: %p%",
+    progFinishing: "Controllo finale…",
+    importDone: "Importazione terminata: controlla la notifica in Home Assistant.",
     errRunning: "Un'importazione di questo contatore è già in corso: attendi che finisca.",
     errEmpty: "Il file è vuoto.",
     errNoReadings: "Non ho trovato letture valide. Servono almeno una colonna con la data e una con il valore (per esempio data;lettura).",
@@ -132,6 +136,10 @@ const TEXTS = {
     importStatsPresent: "the chart history was already there, nothing changed",
     importStatsError: "Readings imported, but the chart history was not written:",
     importing: "Import in progress, it may take a few minutes (10-15 with many years of history). You can leave the page: a notification arrives when done…",
+    progClearing: "Deleting existing data…",
+    progWriting: "Rebuilding history: %p%",
+    progFinishing: "Final check…",
+    importDone: "Import finished: check the notification in Home Assistant.",
     errRunning: "An import for this meter is already running: wait for it to finish.",
     errEmpty: "The file is empty.",
     errNoReadings: "No valid readings found. A date column and a value column are needed (e.g. date;reading).",
@@ -170,6 +178,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     if (!this._recovered && this._hass && this._state && this._state()) {
       this._recovered = true;
       this._recoverPhoto();
+      this._pollImport();
     }
   }
 
@@ -197,6 +206,53 @@ class RilevatoreConsumiCard extends HTMLElement {
       return f && Date.now() - f.t < 5 * 60 * 1000 ? f : null;
     } catch (_e) {
       return null;
+    }
+  }
+
+  // Avanzamento dell'importazione: la card lo legge anche dopo un ricaricamento
+  async _pollImport() {
+    const state = this._state && this._state();
+    const entryId = state && state.attributes && state.attributes.entry_id;
+    if (!entryId || this._polling) return;
+    this._polling = true;
+    const t = this._t;
+    let seen = false;
+    let failures = 0;
+    try {
+      for (;;) {
+        let d = null;
+        try {
+          const resp = await this._hass.fetchWithAuth(`/api/rilevatore_consumi/import/${entryId}`);
+          d = resp.ok ? await resp.json() : null;
+        } catch (_e) {
+          d = null;
+        }
+        if (!d) {
+          if (++failures >= 5) break;
+        } else if (d.running) {
+          failures = 0;
+          seen = true;
+          this._progress = d;
+          const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+          const text = d.phase === "clearing" ? t.progClearing
+            : d.phase === "writing" ? t.progWriting.replace("%p%", `${pct}%`)
+            : d.phase === "finishing" ? t.progFinishing : t.importing;
+          this._setMessage(text, "");
+        } else {
+          break;
+        }
+        await new Promise((r) => setTimeout(r, seen ? 2500 : 1000));
+        if (!seen && !this._busy) break; // niente in corso: nessun messaggio
+      }
+    } finally {
+      this._polling = false;
+      this._progress = null;
+      if (seen && !this._busy && Date.now() - (this._lastPostAt || 0) > 15000) {
+        this._stats = {};
+        this._setMessage(t.importDone, "ok");
+      } else {
+        this._update();
+      }
     }
   }
 
@@ -319,8 +375,14 @@ class RilevatoreConsumiCard extends HTMLElement {
         button:disabled { opacity: 0.5; cursor: default; }
         .repl { display: block; margin: 8px 0; font-size: 0.95em; }
         .msg { margin-top: 8px; font-size: 0.95em; }
-        .msg.error { color: var(--error-color); }
-        .msg.ok { color: var(--success-color, green); }
+        .msg.error, .msg.ok { color: var(--primary-text-color); padding: 6px 10px; border-radius: 6px; }
+        .msg.error { background: color-mix(in srgb, var(--error-color, #db4437) 22%, transparent); border-left: 3px solid var(--error-color, #db4437); }
+        .msg.ok { background: color-mix(in srgb, var(--success-color, #2e7d32) 22%, transparent); border-left: 3px solid var(--success-color, #2e7d32); }
+        .bar { margin-top: 6px; height: 8px; border-radius: 4px; overflow: hidden;
+          background: var(--secondary-background-color); }
+        .fill { height: 100%; width: 0; background: var(--primary-color); transition: width 0.6s; }
+        .bar.wait .fill { width: 40%; animation: slide 1.4s infinite ease-in-out; }
+        @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
         .pending { margin-top: 12px; padding: 12px; border-radius: 8px;
           background: var(--secondary-background-color); }
         .pending img { max-width: 100%; max-height: 160px; border-radius: 8px; display: block; margin-bottom: 8px; }
@@ -378,6 +440,7 @@ class RilevatoreConsumiCard extends HTMLElement {
           </div>
         </div>
         <div class="msg"></div>
+        <div class="bar" hidden><div class="fill"></div></div>
       </ha-card>`;
     const $ = (s) => this.shadowRoot.querySelector(s);
     $("#save").addEventListener("click", () => this._onSave());
@@ -448,6 +511,14 @@ class RilevatoreConsumiCard extends HTMLElement {
     const msg = $(".msg");
     msg.textContent = this._message;
     msg.className = "msg " + (this._messageKind || "");
+    const bar = $(".bar");
+    const pr = this._progress;
+    bar.hidden = !pr;
+    if (pr) {
+      const pct = pr.total ? Math.round((pr.done / pr.total) * 100) : null;
+      bar.classList.toggle("wait", pct === null);
+      $(".fill").style.width = pct === null ? "" : `${pct}%`;
+    }
 
     this._renderTabs();
     this._renderReadings(attrs.recent_readings || []);
@@ -729,6 +800,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     this._busy = true;
     this._setMessage(commit ? this._t.importing : "", "");
     this._update();
+    if (commit) setTimeout(() => this._pollImport(), 1500);
     try {
       const resp = await this._hass.fetchWithAuth(
         `/api/rilevatore_consumi/import/${target.entryId}?commit=${commit ? 1 : 0}${commit && this._imp.replace ? "&replace=1" : ""}`,
@@ -763,6 +835,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     } catch (err) {
       this._setMessage((err && err.message) || String(err), "error");
     } finally {
+      this._lastPostAt = Date.now();
       this._busy = false;
       this._update();
     }

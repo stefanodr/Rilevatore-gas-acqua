@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.components.recorder import get_instance
@@ -166,7 +167,10 @@ CHUNK_HOURS = 24 * 31
 
 
 async def _async_import_chunked(
-    hass: HomeAssistant, metadata: StatisticMetaData, rows: list[dict[str, Any]]
+    hass: HomeAssistant,
+    metadata: StatisticMetaData,
+    rows: list[dict[str, Any]],
+    progress: Callable[[int, int], None] | None = None,
 ) -> None:
     """Scrive le statistiche a blocchi (circa un mese), aspettando il recorder.
 
@@ -176,9 +180,14 @@ async def _async_import_chunked(
     instance = get_instance(hass)
     # Dal periodo più recente al più vecchio: se si interrompe restano i mesi che
     # servono di più, e una nuova importazione completa la parte più vecchia.
-    for i in reversed(range(0, len(rows), CHUNK_HOURS)):
+    starts = list(reversed(range(0, len(rows), CHUNK_HOURS)))
+    if progress:
+        progress(0, len(starts))
+    for done, i in enumerate(starts, 1):
         async_import_statistics(hass, metadata, rows[i : i + CHUNK_HOURS])
         await instance.async_block_till_done()
+        if progress:
+            progress(done, len(starts))
 
 
 def meter_sensor_ids(hass: HomeAssistant, entry_id: str) -> list[str]:
@@ -288,6 +297,7 @@ async def async_write_history(
     target_id: str,
     old_rows: list[dict[str, Any]],
     name: str | None = None,
+    progress: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
     """Scrive old_rows come storico di target_id, prima di quello già presente."""
     instance = get_instance(hass)
@@ -296,7 +306,7 @@ async def async_write_history(
     merged = merge_rows(old_rows, new_rows)
 
     metadata = _metadata(target_id, name)
-    await _async_import_chunked(hass, metadata, with_anchor(merged))
+    await _async_import_chunked(hass, metadata, with_anchor(merged), progress)
     return {
         "target": target_id,
         "imported_hours": len(merged) - len(new_rows),

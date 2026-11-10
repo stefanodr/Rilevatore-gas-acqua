@@ -1,4 +1,4 @@
-# Rilevatore consumi gas / acqua (v2.1.4)
+# Rilevatore consumi gas / acqua (v2.2.0)
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 

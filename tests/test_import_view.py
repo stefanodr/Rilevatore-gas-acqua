@@ -511,3 +511,50 @@ async def test_reset_without_reading_takes_current_from_next_import(
     # un secondo file con una lettura più bassa non cambia più la lettura attuale
     await _post(client, entry, _csv(50), commit=True)
     assert meter.reading == 100 + 5 * 23
+
+
+async def test_import_status_reports_progress(
+    recorder_mock: Recorder, hass: HomeAssistant, hass_client, clock
+) -> None:
+    """GET dello stato: durante l'importazione indica fase e avanzamento, poi 'non in corso'."""
+    import asyncio  # noqa: PLC0415
+
+    from custom_components.rilevatore_consumi import history as H  # noqa: PLC0415
+
+    entry = await _setup(hass, clock)
+    client = await hass_client()
+    url = f"/api/rilevatore_consumi/import/{entry.entry_id}"
+    assert await (await client.get(url)).json() == {"running": False}
+    gate, started = asyncio.Event(), asyncio.Event()
+    real = H.async_write_history
+
+    async def slow(hass_, target, rows, name=None, progress=None):
+        started.set()
+        await gate.wait()
+        return await real(hass_, target, rows, name, progress)
+
+    with patch.object(H, "async_write_history", slow):
+        post = asyncio.ensure_future(_post(client, entry, _csv(100), commit=True))
+        await asyncio.wait_for(started.wait(), 10)
+        status = await (await client.get(url)).json()
+        assert status["running"] is True and "phase" in status
+        gate.set()
+        assert (await post).status == 200
+    assert await (await client.get(url)).json() == {"running": False}
+    assert (await client.get("/api/rilevatore_consumi/import/nonexistent")).status == 404
+
+
+async def test_diagnostics(
+    recorder_mock: Recorder, hass: HomeAssistant, clock
+) -> None:
+    """La diagnostica riporta lo stato del contatore senza nomi."""
+    from custom_components.rilevatore_consumi.diagnostics import (  # noqa: PLC0415
+        async_get_config_entry_diagnostics,
+    )
+
+    entry = await _setup(hass, clock)
+    data = await async_get_config_entry_diagnostics(hass, entry)
+    assert data["meter"]["reading"] == 5728
+    assert data["meter"]["import_running"] is False
+    assert data["entry"]["title"] == "**REDACTED**"
+    assert data["version"]

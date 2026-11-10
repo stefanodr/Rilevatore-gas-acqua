@@ -145,6 +145,19 @@ class ImportView(HomeAssistantView):
     name = "api:rilevatore_consumi:import"
     requires_auth = True
 
+    async def get(self, request: web.Request, entry_id: str) -> web.Response:
+        """Stato dell'importazione in corso (la card lo legge per la barra di avanzamento)."""
+        hass = request.app[KEY_HASS]
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
+        ):
+            return self.json_message("Contatore non trovato", HTTPStatus.NOT_FOUND)
+        meter = entry.runtime_data
+        return self.json({"running": meter.import_running, **meter.import_progress})
+
     async def post(self, request: web.Request, entry_id: str) -> web.Response:
         """Anteprima (commit=0) o importazione (commit=1) di letture da file."""
         hass = request.app[KEY_HASS]
@@ -208,6 +221,7 @@ class ImportView(HomeAssistantView):
                 HTTPStatus.CONFLICT,
             )
         meter.import_running = True
+        meter.import_progress = {"phase": "start", "done": 0, "total": 0}
         # L'importazione gira in un'attività di sfondo: Home Assistant annulla la
         # richiesta se la pagina si chiude o si ricarica, ma il lavoro deve finire
         task = entry.async_create_background_task(
@@ -232,8 +246,12 @@ class ImportView(HomeAssistantView):
         replaced: bool,
     ) -> tuple[HTTPStatus, dict[str, Any]]:
         """Scrive letture e storico; sempre fino in fondo, anche senza la pagina."""
+        def _progress(done: int, total: int) -> None:
+            meter.import_progress = {"phase": "writing", "done": done, "total": total}
+
         try:
             if replaced:
+                meter.import_progress = {"phase": "clearing", "done": 0, "total": 0}
                 # Sostituisce tutto: i dati esistenti (letture, consumi, statistiche,
                 # cronologia) vengono cancellati e si riparte dal file
                 from .history import async_clear_history, meter_sensor_ids  # noqa: PLC0415
@@ -259,7 +277,7 @@ class ImportView(HomeAssistantView):
 
                 try:
                     statistics = await async_write_history(
-                        hass, total_id, hourly_rows(readings), entry.title
+                        hass, total_id, hourly_rows(readings), entry.title, _progress
                     )
                 except HomeAssistantError as err:
                     if getattr(err, "translation_key", None) == "nothing_to_import":
@@ -271,6 +289,7 @@ class ImportView(HomeAssistantView):
                     # Controllo finale: se tra storico importato e righe già scritte
                     # dal recorder c'è un salto (barre negative in plancia Energia)
                     # lo si ripara
+                    meter.import_progress = {"phase": "finishing", "done": 0, "total": 0}
                     try:
                         fixed = await async_repair_sums(hass, total_id, entry.title)
                         count = fixed["hours_fixed"] + (1 if fixed["anchor_added"] else 0)
@@ -296,3 +315,4 @@ class ImportView(HomeAssistantView):
             }
         finally:
             meter.import_running = False
+            meter.import_progress = {}

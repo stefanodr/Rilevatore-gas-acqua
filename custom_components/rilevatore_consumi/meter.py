@@ -103,6 +103,8 @@ class Meter:
         """Inizializza il contatore."""
         self.hass = hass
         self.import_running = False  # un solo import alla volta per contatore
+        # Avanzamento dell'importazione in corso (solo in memoria): fase e blocchi fatti/totali
+        self.import_progress: dict[str, Any] = {}
         self.entry = entry
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
