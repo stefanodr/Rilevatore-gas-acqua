@@ -47,7 +47,7 @@ def _state_to_int(hass: Any, entity_id: str) -> int | None:
 class RilevatoreConfigFlow(ConfigFlow, domain=DOMAIN):
     """Gestisce l'aggiunta di un contatore."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Inizializza il flusso."""

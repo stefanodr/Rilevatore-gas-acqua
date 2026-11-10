@@ -1,4 +1,4 @@
-# Gas / water meter reader (v2.2.0)
+# Gas / water meter reader (v2.2.1)
 
 🇬🇧 English · 🇮🇹 [Italiano](README.it.md)
 
@@ -16,7 +16,8 @@ Requires Home Assistant **2025.10 or later**.
 
 ### Installation
 
-**HACS**: Integrations → ⋮ → *Custom repositories* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (type *Integration*) → install → restart.
+**HACS** (recommended): open HACS, search for **Rilevatore consumi**, download it and restart Home Assistant.
+**HACS, as a custom repository** (alternative, e.g. if you do not find it in the search): Integrations → ⋮ → *Custom repositories* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (type *Integration*) → install → restart.
 **Manual**: copy `custom_components/rilevatore_consumi` into HA's `custom_components` folder and restart.
 
 ### Setup

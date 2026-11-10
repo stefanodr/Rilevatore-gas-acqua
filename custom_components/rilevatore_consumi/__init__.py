@@ -21,6 +21,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CARD_FILE,
+    CONF_ADOPTED,
     CONF_EXISTING,
     DOMAIN,
     STORAGE_VERSION,
@@ -87,6 +88,30 @@ async def _async_title_changed(hass: HomeAssistant, entry: ConfigEntry) -> None:
     hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Versione 2: segna come già fatta la rinomina verso il vecchio sensore.
+
+    Da qui in poi l'entity_id viene sostituito una sola volta: se l'utente lo
+    rinomina, l'integrazione non lo riporta più al nome precedente.
+    """
+    if entry.version == 1:
+        data = dict(entry.data)
+        preferred = entry.options.get(CONF_EXISTING) or data.get(CONF_EXISTING)
+        current = er.async_get(hass).async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_total"
+        )
+        pending = (
+            ir.async_get(hass).async_get_issue(DOMAIN, f"entity_id_busy_{entry.entry_id}")
+            is not None
+        )
+        # Sostituzione fatta (o entità poi rinominata dall'utente): non si ripete.
+        # Resta da fare solo se il nome era occupato (segnalazione ancora aperta).
+        if preferred and not pending and current is not None:
+            data[CONF_ADOPTED] = preferred
+        hass.config_entries.async_update_entry(entry, data=data, version=2)
+    return True
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: RilevatoreConfigEntry) -> bool:
     """Scarica un contatore."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -107,11 +132,21 @@ def _async_adopt_entity_id(hass: HomeAssistant, entry: RilevatoreConfigEntry) ->
     issue_id = f"entity_id_busy_{entry.entry_id}"
     if not preferred:
         return
+    if entry.data.get(CONF_ADOPTED) == preferred:
+        return  # già fatto: l'utente può rinominare l'entità senza che torni indietro
+
+    def _done() -> None:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_ADOPTED: preferred}
+        )
 
     registry = er.async_get(hass)
     current = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_total")
-    if current is None or current == preferred:
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
+    if current is None:
+        return
+    if current == preferred:
+        _done()
         return
 
     occupant = registry.async_get(preferred)
@@ -125,7 +160,7 @@ def _async_adopt_entity_id(hass: HomeAssistant, entry: RilevatoreConfigEntry) ->
 
     if occupant is None and hass.states.get(preferred) is None:
         registry.async_update_entity(current, new_entity_id=preferred)
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        _done()
         return
 
     ir.async_create_issue(

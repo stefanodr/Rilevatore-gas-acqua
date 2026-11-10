@@ -152,3 +152,37 @@ async def test_recent_readings_log(hass: HomeAssistant) -> None:
     )
     rows = hass.states.get("sensor.gas_meter_reading").attributes["recent_readings"]
     assert [r["v"] for r in rows] == [5726, 5730]
+
+
+async def test_rename_happens_only_once(hass: HomeAssistant) -> None:
+    """Se l'utente rinomina l'entità dopo la sostituzione, non torna al nome vecchio."""
+    entry = await _setup(hass)
+    registry = er.async_get(hass)
+    assert registry.async_get(OLD).platform == DOMAIN
+    assert entry.data["adopted_entity"] == OLD
+    registry.async_update_entity(OLD, new_entity_id="sensor.gas_mio")
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert registry.async_get("sensor.gas_mio") is not None
+    assert registry.async_get(OLD) is None
+
+
+async def test_migration_keeps_user_rename(hass: HomeAssistant) -> None:
+    """Installazione precedente (versione 1) con entità rinominata: resta com'è."""
+    entry = make_entry(existing_entity=OLD)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    registry = er.async_get(hass)
+    registry.async_update_entity(OLD, new_entity_id="sensor.gas_mio")
+    await hass.config_entries.async_unload(entry.entry_id)
+    hass.config_entries.async_update_entry(
+        entry, data={k: v for k, v in entry.data.items() if k != "adopted_entity"}, version=1
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.version == 2
+    assert entry.data["adopted_entity"] == OLD
+    assert registry.async_get("sensor.gas_mio") is not None
+    assert registry.async_get(OLD) is None

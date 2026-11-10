@@ -1,4 +1,4 @@
-# Rilevatore consumi gas / acqua (v2.2.0)
+# Rilevatore consumi gas / acqua (v2.2.1)
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
@@ -16,7 +16,8 @@ Richiede Home Assistant **2025.10 o successivo**.
 
 ### Installazione
 
-**HACS**: Integrazioni → menu ⋮ → *Repository personalizzati* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (categoria *Integrazione*) → installa → riavvia.
+**HACS** (consigliato): apri HACS, cerca **Rilevatore consumi**, scaricalo e riavvia Home Assistant.
+**HACS, come repository personalizzato** (alternativa, per esempio se non lo trovi nella ricerca): Integrazioni → menu ⋮ → *Repository personalizzati* → `https://github.com/stefanodr/Rilevatore-gas-acqua` (categoria *Integrazione*) → installa → riavvia.
 **Manuale**: copia `custom_components/rilevatore_consumi` nella cartella `custom_components` di HA e riavvia.
 
 ### Configurazione
