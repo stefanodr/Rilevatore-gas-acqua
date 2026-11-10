@@ -378,10 +378,10 @@ class RilevatoreConsumiCard extends HTMLElement {
         .msg.error, .msg.ok { color: var(--primary-text-color); padding: 6px 10px; border-radius: 6px; }
         .msg.error { background: color-mix(in srgb, var(--error-color, #db4437) 22%, transparent); border-left: 3px solid var(--error-color, #db4437); }
         .msg.ok { background: color-mix(in srgb, var(--success-color, #2e7d32) 22%, transparent); border-left: 3px solid var(--success-color, #2e7d32); }
-        .bar { margin-top: 6px; height: 8px; border-radius: 4px; overflow: hidden;
+        .prog { margin-top: 6px; height: 8px; border-radius: 4px; overflow: hidden;
           background: var(--secondary-background-color); }
-        .fill { height: 100%; width: 0; background: var(--primary-color); transition: width 0.6s; }
-        .bar.wait .fill { width: 40%; animation: slide 1.4s infinite ease-in-out; }
+        .progfill { height: 100%; width: 0; background: var(--primary-color); transition: width 0.6s; }
+        .prog.wait .progfill { width: 40%; animation: slide 1.4s infinite ease-in-out; }
         @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
         .pending { margin-top: 12px; padding: 12px; border-radius: 8px;
           background: var(--secondary-background-color); }
@@ -440,7 +440,7 @@ class RilevatoreConsumiCard extends HTMLElement {
           </div>
         </div>
         <div class="msg"></div>
-        <div class="bar" hidden><div class="fill"></div></div>
+        <div class="prog" hidden><div class="progfill"></div></div>
       </ha-card>`;
     const $ = (s) => this.shadowRoot.querySelector(s);
     $("#save").addEventListener("click", () => this._onSave());
@@ -511,13 +511,13 @@ class RilevatoreConsumiCard extends HTMLElement {
     const msg = $(".msg");
     msg.textContent = this._message;
     msg.className = "msg " + (this._messageKind || "");
-    const bar = $(".bar");
+    const bar = $(".prog");
     const pr = this._progress;
     bar.hidden = !pr;
     if (pr) {
       const pct = pr.total ? Math.round((pr.done / pr.total) * 100) : null;
       bar.classList.toggle("wait", pct === null);
-      $(".fill").style.width = pct === null ? "" : `${pct}%`;
+      $(".progfill").style.width = pct === null ? "" : `${pct}%`;
     }
 
     this._renderTabs();
