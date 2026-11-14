@@ -1,4 +1,4 @@
-# Rilevatore consumi gas / acqua (v2.2.1)
+# Rilevatore consumi gas / acqua (v2.3.0)
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
@@ -47,7 +47,7 @@ meter: gas        # gas oppure water: la card trova da sola il sensore giusto
 title: Gas        # facoltativo
 ```
 
-La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
+La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 settimane (da lunedì a domenica, indicate con la data di inizio), 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
 
 Se vuoi, aggiungi `image: /local/mia-foto.png` per usare un'altra immagine del contatore, oppure `image: false` per nasconderla: di serie in alto a destra compare l'immagine del gas o dell'acqua.
 
@@ -121,7 +121,7 @@ Vale per un solo contatore (gas o acqua): l'altro non viene toccato. Serve il CS
 1. **Cancella da Azioni (pochi secondi).** In *Strumenti per sviluppatori → Azioni* scegli `rilevatore_consumi.reset_history`, come entità il sensore «Lettura contatore» del contatore da azzerare, attiva `confirm` ed esegui. `reading` è **facoltativo**: lascialo vuoto e la lettura attuale verrà presa dall'ultima riga del CSV che importi dopo; indicalo solo se vuoi impostare subito una lettura precisa.
 2. **Controlla che sia finito.** L'azione termina senza errori e nella risposta elenca i sensori puliti (`cleared`); se segnala che l'azzeramento non è completo (`reset_incomplete`), eseguila di nuovo. Vengono cancellati letture, consumi, statistiche (grafici e plancia Energia) e cronologia di quel contatore. Non serve aspettare l'aggiornamento dei grafici (può richiedere fino a un'ora).
 3. **Carica il file giusto dalla card.** Tocca 📁 *File*, controlla l'anteprima e conferma (non spuntare «Sostituisci»: hai già azzerato). Con molti anni di storico servono anche **10-15 minuti**: puoi lasciare o ricaricare la pagina, l'importazione continua da sola. **Aspetta la notifica** in Home Assistant (campanella): «importate N letture; storico dei grafici ricostruito». Finché non arriva non è finita. Se dice «importazione NON completata», ripeti la stessa importazione: completa la parte mancante.
-4. **Verifica** la card (Giorni / Mesi / Anni) e la plancia Energia. Non serve `repair_statistics`: la riparazione delle somme è automatica a fine importazione.
+4. **Verifica** la card (Giorni / Settimane / Mesi / Anni) e la plancia Energia. Non serve `repair_statistics`: la riparazione delle somme è automatica a fine importazione.
 
 Se importi un file senza azzerare prima, viene riempito solo il periodo **precedente** ai dati già presenti, quindi i valori sbagliati restano. In alternativa, la casella **«Sostituisci i dati esistenti»** nell'anteprima fa le stesse operazioni in un'unica richiesta, più lunga e senza il controllo intermedio. Con versioni precedenti alla 2.1.4 aggiorna prima.
 

@@ -13,15 +13,19 @@ const TEXTS = {
     month: "Questo mese",
     year: "Quest'anno",
     days: "Giorni",
+    weeks: "Settimane",
     months: "Mesi",
     years: "Anni",
     total: "Totale",
     totalDays: "Totale ultimi 30 giorni",
+    totalWeeks: "Totale ultime 12 settimane",
     totalMonths: "Totale ultimi 12 mesi",
     totalYears: "Totale ultimi 5 anni",
     average: "Media",
     partial: "parziale",
     perDay: "al giorno",
+    perWeek: "a settimana",
+    weekOf: "Settimana dal",
     perMonth: "al mese",
     perYear: "all'anno",
     noStats: "Nessun dato storico disponibile",
@@ -84,15 +88,19 @@ const TEXTS = {
     month: "This month",
     year: "This year",
     days: "Days",
+    weeks: "Weeks",
     months: "Months",
     years: "Years",
     total: "Total",
     totalDays: "Total last 30 days",
+    totalWeeks: "Total last 12 weeks",
     totalMonths: "Total last 12 months",
     totalYears: "Total last 5 years",
     average: "Average",
     partial: "partial",
     perDay: "per day",
+    perWeek: "per week",
+    weekOf: "Week of",
     perMonth: "per month",
     perYear: "per year",
     noStats: "No history available",
@@ -153,7 +161,22 @@ const TEXTS = {
 
 const MAX_SIDE = 1600;
 const STATIC = "/rilevatore_consumi_static";
-const TABS = ["days", "months", "years"];
+const TABS = ["days", "weeks", "months", "years"];
+
+// Lunedì della settimana che contiene la data (alle 00:00 locali)
+function mondayOf(dt) {
+  const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+// Numero di settimana ISO 8601
+function isoWeek(dt) {
+  const d = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
 const STATS_TTL_MS = 10 * 60 * 1000;
 
 class RilevatoreConsumiCard extends HTMLElement {
@@ -567,6 +590,11 @@ class RilevatoreConsumiCard extends HTMLElement {
       const start = new Date(y, m, now.getDate() - 29);
       return { period: "day", start };
     }
+    if (tab === "weeks") {
+      // statistiche giornaliere, raggruppate in settimane (lunedì-domenica) nella card
+      const monday = mondayOf(now);
+      return { period: "day", start: new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 77) };
+    }
     if (tab === "months") {
       return { period: "month", start: new Date(y, m - 11, 1) };
     }
@@ -585,6 +613,11 @@ class RilevatoreConsumiCard extends HTMLElement {
       const key =
         tab === "days"
           ? `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`
+          : tab === "weeks"
+          ? (() => {
+              const mo = mondayOf(dt);
+              return `${mo.getFullYear()}-${mo.getMonth()}-${mo.getDate()}`;
+            })()
           : tab === "months"
           ? `${dt.getFullYear()}-${dt.getMonth()}`
           : `${dt.getFullYear()}`;
@@ -598,6 +631,18 @@ class RilevatoreConsumiCard extends HTMLElement {
           key: `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`,
           label: dt.getDate() === 1 || i === 29 || i === 0 ? String(dt.getDate()) : String(dt.getDate()),
           title: dt.toLocaleDateString(lang, { day: "numeric", month: "short" }),
+          now: i === 0,
+        });
+      }
+    } else if (tab === "weeks") {
+      const monday = mondayOf(now);
+      for (let i = 11; i >= 0; i--) {
+        const dt = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * i);
+        out.push({
+          key: `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`,
+          label: String(dt.getDate()),
+          label2: dt.toLocaleDateString(lang, { month: "short" }).replace(".", ""),
+          title: `${this._t.weekOf} ${dt.toLocaleDateString(lang, { day: "numeric", month: "short" })}`,
           now: i === 0,
         });
       }
@@ -660,7 +705,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     const W = 300;
     const H = 130;
     const top = 14;
-    const bottom = 18;
+    const two = buckets.some((b) => b.label2);
+    const bottom = two ? 30 : 18;
     const n = buckets.length;
     const step = W / n;
     const bw = Math.max(2, step * 0.7);
@@ -677,7 +723,10 @@ class RilevatoreConsumiCard extends HTMLElement {
         bars += `<text class="val" x="${(x + bw / 2).toFixed(1)}" y="${(y - 2).toFixed(1)}" text-anchor="middle">${this._fmt(b.value)}</text>`;
       }
       if ((n - 1 - i) % labelEvery === 0 || i === 0) {
-        bars += `<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle">${b.label}</text>`;
+        bars += two
+          ? `<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 17}" text-anchor="middle">${b.label}</text>` +
+            `<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${b.label2}</text>`
+          : `<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle">${b.label}</text>`;
       }
     });
     chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">
@@ -687,8 +736,8 @@ class RilevatoreConsumiCard extends HTMLElement {
     const first = buckets.findIndex((b) => b.value > 0);
     const used = buckets.slice(first);
     const avg = total / used.length;
-    const unit = { days: t.perDay, months: t.perMonth, years: t.perYear }[this._tab];
-    const totalLabel = { days: t.totalDays, months: t.totalMonths, years: t.totalYears }[this._tab];
+    const unit = { days: t.perDay, weeks: t.perWeek, months: t.perMonth, years: t.perYear }[this._tab];
+    const totalLabel = { days: t.totalDays, weeks: t.totalWeeks, months: t.totalMonths, years: t.totalYears }[this._tab];
     summary.innerHTML = `<span>${totalLabel}: <b>${this._fmt(total)} m³</b></span><span>${t.average}: <b>${this._fmt(avg)} m³</b> ${unit}</span>`;
   }
 

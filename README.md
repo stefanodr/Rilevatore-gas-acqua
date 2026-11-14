@@ -1,4 +1,4 @@
-# Gas / water meter reader (v2.2.1)
+# Gas / water meter reader (v2.3.0)
 
 🇬🇧 English · 🇮🇹 [Italiano](README.it.md)
 
@@ -47,7 +47,7 @@ meter: gas        # gas or water: the card finds the right sensor by itself
 title: Gas        # optional
 ```
 
-The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
+The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 weeks (Monday to Sunday, labelled with the start date), 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
 
 Add `image: /local/my-photo.png` to use another picture of the meter, or `image: false` to hide it: by default a gas or water meter picture appears at the top right.
 
@@ -121,7 +121,7 @@ This applies to a single meter (gas or water): the other one is not touched. You
 1. **Delete from Actions (a few seconds).** In *Developer tools → Actions* choose `rilevatore_consumi.reset_history`, pick the "Meter reading" sensor of the meter to reset as the entity, turn `confirm` on and run it. `reading` is **optional**: leave it empty and the current reading will be taken from the last row of the CSV you import next; fill it only if you want to set a specific reading right away.
 2. **Check it finished.** The action ends without errors and its response lists the cleaned sensors (`cleared`); if it reports the reset is incomplete (`reset_incomplete`), run it again. Readings, consumption, statistics (charts and Energy dashboard) and sensor history of that meter are deleted. You do not need to wait for the charts to refresh (it can take up to an hour).
 3. **Load the correct file from the card.** Tap 📁 *File*, check the preview and confirm (do not tick "Replace": you have already reset). With many years of history it takes up to **10-15 minutes**: you can leave or reload the page, the import keeps running. **Wait for the notification** in Home Assistant (bell): "imported N readings; chart history rebuilt". Until it arrives it is not finished. If it says "import NOT completed", repeat the same import: it completes the missing part.
-4. **Check** the card (Days / Months / Years) and the Energy dashboard. You do not need `repair_statistics`: the sums are repaired automatically at the end of the import.
+4. **Check** the card (Days / Weeks / Months / Years) and the Energy dashboard. You do not need `repair_statistics`: the sums are repaired automatically at the end of the import.
 
 If you import a file without resetting first, only the period **before** the data already present is filled, so the wrong values stay. Alternatively, the **"Replace existing data"** box in the preview does the same operations in a single, longer request without the intermediate check. With versions older than 2.1.4, update first.
 
