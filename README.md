@@ -47,7 +47,7 @@ meter: gas        # gas or water: the card finds the right sensor by itself
 title: Gas        # optional
 ```
 
-The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 weeks (Monday to Sunday, labelled with the start date), 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
+The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 weeks (Monday to Sunday, labelled with the week of the month and the month, e.g. 1st nov), 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
 
 Add `image: /local/my-photo.png` to use another picture of the meter, or `image: false` to hide it: by default a gas or water meter picture appears at the top right.
 

@@ -47,7 +47,7 @@ meter: gas        # gas oppure water: la card trova da sola il sensore giusto
 title: Gas        # facoltativo
 ```
 
-La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 settimane (da lunedì a domenica, indicate con la data di inizio), 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
+La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 settimane (da lunedì a domenica, indicate con la settimana del mese e il mese, es. 1° nov), 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
 
 Se vuoi, aggiungi `image: /local/mia-foto.png` per usare un'altra immagine del contatore, oppure `image: false` per nasconderla: di serie in alto a destra compare l'immagine del gas o dell'acqua.
 

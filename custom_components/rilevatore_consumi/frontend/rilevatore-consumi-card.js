@@ -564,6 +564,13 @@ class RilevatoreConsumiCard extends HTMLElement {
     return new Intl.NumberFormat(this._lang, { maximumFractionDigits: 1 }).format(n);
   }
 
+  // 1°, 2°, 3°… (in inglese 1st, 2nd, 3rd…)
+  _ordinal(n) {
+    if (!String(this._lang).startsWith("en")) return `${n}°`;
+    const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix}`;
+  }
+
   _renderTabs() {
     const t = this._t;
     const tabs = this.shadowRoot.querySelector(".tabs");
@@ -640,7 +647,7 @@ class RilevatoreConsumiCard extends HTMLElement {
         const dt = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * i);
         out.push({
           key: `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`,
-          label: String(dt.getDate()),
+          label: this._ordinal(Math.ceil(dt.getDate() / 7)),
           label2: dt.toLocaleDateString(lang, { month: "short" }).replace(".", ""),
           title: `${this._t.weekOf} ${dt.toLocaleDateString(lang, { day: "numeric", month: "short" })}`,
           now: i === 0,
