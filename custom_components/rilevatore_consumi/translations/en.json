@@ -63,6 +63,9 @@
       "consumption_day": {
         "name": "Consumption today"
       },
+      "consumption_week": {
+        "name": "Consumption this week"
+      },
       "consumption_month": {
         "name": "Consumption this month"
       },

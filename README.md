@@ -1,16 +1,16 @@
-# Gas / water meter reader (v2.3.0)
+# Gas / water meter reader (v2.4.0)
 
 🇬🇧 English · 🇮🇹 [Italiano](README.it.md)
 
 <p align="center">
-  <img src="docs/images/card-gas.png" alt="Card Gas / Gas card" width="330">
+  <img src="docs/images/card-gas-v2.png" alt="Card Gas / Gas card" width="330">
   &nbsp;&nbsp;
-  <img src="docs/images/card-water.png" alt="Card Acqua / Water card" width="330">
+  <img src="docs/images/card-water-v2.png" alt="Card Acqua / Water card" width="330">
 </p>
 
 ---
 
-Home Assistant integration to record the **gas** and **water meter** reading (whole m³), show it in the **Energy dashboard** and compute today / month / year consumption. Built for meters where no sensor can be installed: enter the reading **by hand** or **by photo**, or **from CSV**.
+Home Assistant integration to record the **gas** and **water meter** reading (whole m³), show it in the **Energy dashboard** and compute today / week / month / year consumption. Built for meters where no sensor can be installed: enter the reading **by hand** or **by photo**, or **from CSV**.
 
 Requires Home Assistant **2025.10 or later**.
 
@@ -26,7 +26,7 @@ Requires Home Assistant **2025.10 or later**.
 
 Each meter provides:
 - **Meter reading** (use it as gas/water source in the Energy dashboard);
-- **Consumption today / month / year**;
+- **Consumption today / week / month / year**;
 - **New reading** (number field) and **Last photo** (kept in memory only, never written to disk).
 
 ### Entering a reading
@@ -47,7 +47,7 @@ meter: gas        # gas or water: the card finds the right sensor by itself
 title: Gas        # optional
 ```
 
-The card shows the reading, consumption today / this month / this year, a bar chart of the last 30 days, 12 weeks (Monday to Sunday, labelled with the week of the month and the month, e.g. 1st nov), 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
+The card shows the reading, consumption today / this week / this month / this year, a bar chart of the last 30 days, 12 weeks (Monday to Sunday, labelled with the week of the month and the month, e.g. 1st nov), 12 months and 5 years (with total and average), the latest readings and the controls to enter a reading by hand or from a photo. The chart uses Home Assistant statistics, so it includes history recovered from the old sensor. Instead of `meter` you can use `entity: sensor.…` (the "Meter reading" sensor).
 
 Add `image: /local/my-photo.png` to use another picture of the meter, or `image: false` to hide it: by default a gas or water meter picture appears at the top right.
 
@@ -56,7 +56,7 @@ Add `image: /local/my-photo.png` to use another picture of the meter, or `image:
 In the card, the **📁 File** button uploads a CSV file of readings. Accepted: the Home Assistant history export (`entity_id,state,last_changed`) and simple files with a date and a reading (`date;reading`, ISO dates or `dd/mm/yyyy [hh:mm]`, separator `,` `;` or tab, decimals ignored). Before anything is written you see a **preview** (readings found, period, total consumption, any decreases or ignored rows) and you confirm.
 
 On import:
-- readings go into the latest-readings list and into today / month / year consumption;
+- readings go into the latest-readings list and into today / week / month / year consumption;
 - the current reading changes only if the file holds a newer, not lower reading;
 - chart statistics are rebuilt by spreading consumption between readings (a day-by-day estimate; totals stay exact). It fills the period before the data already present, without touching existing data; importing twice does not duplicate anything.
 

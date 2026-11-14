@@ -558,3 +558,21 @@ async def test_diagnostics(
     assert data["meter"]["import_running"] is False
     assert data["entry"]["title"] == "**REDACTED**"
     assert data["version"]
+
+
+async def test_week_sensor_exists(
+    recorder_mock: Recorder, hass: HomeAssistant, clock
+) -> None:
+    """Esiste il sensore della settimana e la lettura lo riporta nei consumi."""
+    from homeassistant.helpers import entity_registry as er  # noqa: PLC0415
+
+    entry = await _setup(hass, clock)
+    registry = er.async_get(hass)
+    week_id = registry.async_get_entity_id(
+        "sensor", "rilevatore_consumi", f"{entry.entry_id}_consumption_week"
+    )
+    assert week_id is not None
+    assert week_id == "sensor.gas_consumption_this_week"
+    # già alla prima scrittura di stato la card trova i sensori di periodo
+    assert hass.states.get(SENSOR).attributes["week_entity"] == week_id
+    assert hass.states.get(week_id).state != "unavailable"

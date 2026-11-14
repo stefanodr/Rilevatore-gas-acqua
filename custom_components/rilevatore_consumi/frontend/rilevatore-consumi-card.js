@@ -10,6 +10,7 @@ const TEXTS = {
   it: {
     last: "Ultima lettura",
     today: "Oggi",
+    week: "Questa settimana",
     month: "Questo mese",
     year: "Quest'anno",
     days: "Giorni",
@@ -85,6 +86,7 @@ const TEXTS = {
   en: {
     last: "Last reading",
     today: "Today",
+    week: "This week",
     month: "This month",
     year: "This year",
     days: "Days",
@@ -366,10 +368,10 @@ class RilevatoreConsumiCard extends HTMLElement {
         .title { font-size: 1.2em; font-weight: 500; margin-bottom: 4px; }
         .big { font-size: 2.2em; font-weight: 500; line-height: 1.1; }
         .sub { color: var(--secondary-text-color); font-size: 0.9em; margin-bottom: 12px; }
-        .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 16px; }
-        .tile { background: var(--secondary-background-color); border-radius: 10px; padding: 10px 8px; text-align: center; }
-        .tile .v { font-size: 1.4em; font-weight: 500; }
-        .tile .l { font-size: 0.8em; color: var(--secondary-text-color); }
+        .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 16px; }
+        .tile { background: var(--secondary-background-color); border-radius: 10px; padding: 10px 4px; text-align: center; }
+        .tile .v { font-size: 1.2em; font-weight: 500; }
+        .tile .l { font-size: 0.75em; color: var(--secondary-text-color); }
         .tabs { display: flex; gap: 6px; margin-bottom: 6px; }
         .tabs button { flex: 1; padding: 6px 4px; font-size: 0.9em; background: var(--secondary-background-color);
           color: var(--primary-text-color); }
@@ -428,6 +430,7 @@ class RilevatoreConsumiCard extends HTMLElement {
         </div>
         <div class="tiles">
           <div class="tile"><div class="v" id="vDay"></div><div class="l" id="lDay"></div></div>
+          <div class="tile"><div class="v" id="vWeek"></div><div class="l" id="lWeek"></div></div>
           <div class="tile"><div class="v" id="vMonth"></div><div class="l" id="lMonth"></div></div>
           <div class="tile"><div class="v" id="vYear"></div><div class="l" id="lYear"></div></div>
         </div>
@@ -510,12 +513,14 @@ class RilevatoreConsumiCard extends HTMLElement {
       const s = attrs[key] ? this._hass.states[attrs[key]] : undefined;
       return !!(s && s.attributes && s.attributes.partial);
     };
-    this._cur = { days: sib("day_entity"), months: sib("month_entity"), years: sib("year_entity") };
+    this._cur = { days: sib("day_entity"), weeks: sib("week_entity"), months: sib("month_entity"), years: sib("year_entity") };
     const tile = (v) => (v === null ? "—" : `${this._fmt(v)} m³`);
     $("#vDay").textContent = tile(this._cur.days);
+    $("#vWeek").textContent = tile(this._cur.weeks);
     $("#vMonth").textContent = tile(this._cur.months);
     $("#vYear").textContent = tile(this._cur.years);
     $("#lDay").textContent = t.today;
+    $("#lWeek").textContent = t.week + (part("week_entity") ? ` (${t.partial})` : "");
     $("#lMonth").textContent = t.month + (part("month_entity") ? ` (${t.partial})` : "");
     $("#lYear").textContent = t.year + (part("year_entity") ? ` (${t.partial})` : "");
     $("#hReadings").textContent = t.readings;
@@ -549,7 +554,7 @@ class RilevatoreConsumiCard extends HTMLElement {
     this._renderImport();
 
     // Grafico: si ricarica se cambia entità, scheda o lettura (o dopo un po')
-    const key = `${id}|${attrs.last_reading_time || ""}|${this._cur.days}|${this._cur.months}|${this._cur.years}`;
+    const key = `${id}|${attrs.last_reading_time || ""}|${this._cur.days}|${this._cur.weeks}|${this._cur.months}|${this._cur.years}`;
     const cached = this._stats[this._tab];
     if (id && attrs.entry_id && (!cached || cached.key !== key || Date.now() - cached.at > STATS_TTL_MS)) {
       this._loadStats(this._tab, id, key);

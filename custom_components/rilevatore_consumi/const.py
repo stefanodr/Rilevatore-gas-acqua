@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "rilevatore_consumi"
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 
 CONF_TYPE = "meter_type"
 CONF_ADOPTED = "adopted_entity"  # entity_id già preso: la rinomina avviene una volta sola
@@ -20,7 +20,7 @@ METER_TYPES = (TYPE_GAS, TYPE_WATER)
 DEFAULT_MAX_JUMP = {TYPE_GAS: 300, TYPE_WATER: 100}
 
 MAX_READING = 99_999_999
-PERIODS = ("day", "month", "year")
+PERIODS = ("day", "week", "month", "year")
 
 STORAGE_VERSION = 1
 MAX_PHOTO_BYTES = 10 * 1024 * 1024

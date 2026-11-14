@@ -81,6 +81,9 @@ def _period_key(period: str, now: datetime) -> str:
     """Chiave che identifica il periodo corrente."""
     if period == "day":
         return now.date().isoformat()
+    if period == "week":
+        # settimana da lunedì a domenica: la chiave è la data del lunedì
+        return (now.date() - timedelta(days=now.weekday())).isoformat()
     if period == "month":
         return f"{now.year:04d}-{now.month:02d}"
     return f"{now.year:04d}"
@@ -89,6 +92,8 @@ def _period_key(period: str, now: datetime) -> str:
 def period_start(period: str, now: datetime) -> datetime:
     """Inizio (ora locale) del periodo corrente."""
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "week":
+        return start - timedelta(days=start.weekday())
     if period == "month":
         return start.replace(day=1)
     if period == "year":

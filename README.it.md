@@ -1,16 +1,16 @@
-# Rilevatore consumi gas / acqua (v2.3.0)
+# Rilevatore consumi gas / acqua (v2.4.0)
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
 <p align="center">
-  <img src="docs/images/card-gas.png" alt="Card Gas / Gas card" width="330">
+  <img src="docs/images/card-gas-v2.png" alt="Card Gas / Gas card" width="330">
   &nbsp;&nbsp;
-  <img src="docs/images/card-water.png" alt="Card Acqua / Water card" width="330">
+  <img src="docs/images/card-water-v2.png" alt="Card Acqua / Water card" width="330">
 </p>
 
 ---
 
-Integrazione per Home Assistant per registrare la lettura del **contatore del gas** e dell'**acqua** (m³ interi), vederla nella **plancia Energia** e calcolare i consumi di oggi, del mese e dell'anno. Pensata per chi non può installare sensori vicino ai contatori: la lettura si inserisce **a mano**, **da foto**, oppure **da CSV**.
+Integrazione per Home Assistant per registrare la lettura del **contatore del gas** e dell'**acqua** (m³ interi), vederla nella **plancia Energia** e calcolare i consumi di oggi, della settimana, del mese e dell'anno. Pensata per chi non può installare sensori vicino ai contatori: la lettura si inserisce **a mano**, **da foto**, oppure **da CSV**.
 
 Richiede Home Assistant **2025.10 o successivo**.
 
@@ -26,7 +26,7 @@ Richiede Home Assistant **2025.10 o successivo**.
 
 Per ogni contatore ottieni:
 - **Lettura contatore** (da usare nella plancia Energia come fonte gas/acqua);
-- **Consumo oggi / mese / anno**;
+- **Consumo oggi / settimana / mese / anno**;
 - **Nuova lettura** (campo numerico) e **Ultima foto** (solo in memoria, mai salvata su disco).
 
 ### Inserire la lettura
@@ -47,7 +47,7 @@ meter: gas        # gas oppure water: la card trova da sola il sensore giusto
 title: Gas        # facoltativo
 ```
 
-La card mostra la lettura, i consumi di oggi / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 settimane (da lunedì a domenica, indicate con la settimana del mese e il mese, es. 1° nov), 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
+La card mostra la lettura, i consumi di oggi / della settimana / del mese / dell'anno, il grafico a barre degli ultimi 30 giorni, 12 settimane (da lunedì a domenica, indicate con la settimana del mese e il mese, es. 1° nov), 12 mesi e 5 anni (con media e totale), le ultime letture e i comandi per inserire la lettura a mano o da foto. Il grafico usa le statistiche di Home Assistant, quindi comprende anche lo storico recuperato dal vecchio sensore. In alternativa a `meter` puoi indicare `entity: sensor.…` (il sensore "Lettura contatore").
 
 Se vuoi, aggiungi `image: /local/mia-foto.png` per usare un'altra immagine del contatore, oppure `image: false` per nasconderla: di serie in alto a destra compare l'immagine del gas o dell'acqua.
 
@@ -56,7 +56,7 @@ Se vuoi, aggiungi `image: /local/mia-foto.png` per usare un'altra immagine del c
 Nella card, il pulsante **📁 File** carica un file CSV con le letture. Vengono accettati l'esportazione della cronologia di Home Assistant (`entity_id,state,last_changed`) e file semplici con data e lettura (`data;lettura`, con date ISO o `gg/mm/aaaa [hh:mm]`, separatore `,` `;` o tabulazione, decimali ignorati). Prima di scrivere qualsiasi cosa vedi un'**anteprima** (letture trovate, periodo, consumo complessivo, eventuali diminuzioni o righe ignorate) e confermi.
 
 Con l'importazione:
-- le letture entrano nell'elenco delle ultime letture e nei consumi di oggi/mese/anno;
+- le letture entrano nell'elenco delle ultime letture e nei consumi di oggi/settimana/mese/anno;
 - la lettura attuale cambia solo se il file contiene una lettura più recente e non più bassa;
 - le statistiche del grafico vengono ricostruite ripartendo il consumo tra una lettura e l'altra (è una stima giorno per giorno; i totali restano esatti). Si riempie il periodo precedente ai dati già presenti, senza toccare quelli esistenti; ripetere l'importazione non duplica nulla.
 

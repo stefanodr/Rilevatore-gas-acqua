@@ -259,3 +259,25 @@ async def test_remove_entry_deletes_storage(hass: HomeAssistant, hass_storage) -
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert key not in hass_storage
+
+
+def test_week_period_runs_monday_to_sunday() -> None:
+    """La settimana va da lunedì a domenica: chiave e inizio sono il lunedì."""
+    from datetime import datetime  # noqa: PLC0415
+    from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+    from custom_components.rilevatore_consumi.meter import (  # noqa: PLC0415
+        _period_key,
+        period_start,
+    )
+
+    tz = ZoneInfo("Europe/Rome")
+    sunday = datetime(2026, 11, 15, 23, 59, tzinfo=tz)  # domenica
+    monday = datetime(2026, 11, 16, 0, 0, tzinfo=tz)  # lunedì successivo
+    wednesday = datetime(2026, 11, 11, 12, 0, tzinfo=tz)
+    assert _period_key("week", wednesday) == "2026-11-09"
+    assert _period_key("week", sunday) == "2026-11-09"
+    assert _period_key("week", monday) == "2026-11-16"
+    assert period_start("week", wednesday) == datetime(2026, 11, 9, tzinfo=tz)
+    assert period_start("week", sunday) == datetime(2026, 11, 9, tzinfo=tz)
+    assert period_start("week", monday) == monday

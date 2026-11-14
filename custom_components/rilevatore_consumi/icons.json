@@ -7,6 +7,9 @@
       "consumption_day": {
         "default": "mdi:calendar-today"
       },
+      "consumption_week": {
+        "default": "mdi:calendar-week"
+      },
       "consumption_month": {
         "default": "mdi:calendar-month"
       },

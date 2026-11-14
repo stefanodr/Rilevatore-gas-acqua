@@ -50,8 +50,10 @@ async def async_setup_entry(
 ) -> None:
     """Crea i sensori e registra i servizi."""
     meter = entry.runtime_data
+    # Prima i sensori di periodo: il sensore della lettura elenca i "fratelli" nei
+    # suoi attributi, che devono già esistere nel registro alla prima scrittura
     async_add_entities(
-        [TotalSensor(meter), *(PeriodSensor(meter, period) for period in PERIODS)]
+        [*(PeriodSensor(meter, period) for period in PERIODS), TotalSensor(meter)]
     )
 
     platform = entity_platform.async_get_current_platform()
@@ -106,7 +108,7 @@ class TotalSensor(RilevatoreEntity, SensorEntity):
     _attr_suggested_display_precision = 0
     # L'elenco delle ultime letture serve solo alla card: non va nel database
     _unrecorded_attributes = frozenset({"recent_readings", "day_entity",
-        "month_entity", "year_entity", "photo_entity", "input_entity"})
+        "week_entity", "month_entity", "year_entity", "photo_entity", "input_entity"})
 
     def __init__(self, meter: Meter) -> None:
         """Inizializza il sensore."""
@@ -136,6 +138,7 @@ class TotalSensor(RilevatoreEntity, SensorEntity):
         return {
             "entry_id": entry_id,
             "day_entity": sibling("sensor", "consumption_day"),
+            "week_entity": sibling("sensor", "consumption_week"),
             "month_entity": sibling("sensor", "consumption_month"),
             "year_entity": sibling("sensor", "consumption_year"),
             "photo_entity": sibling("image", "photo"),
@@ -149,7 +152,7 @@ class TotalSensor(RilevatoreEntity, SensorEntity):
 
 
 class PeriodSensor(RilevatoreEntity, SensorEntity):
-    """Consumo nel periodo corrente (giorno, mese, anno)."""
+    """Consumo nel periodo corrente (giorno, settimana, mese, anno)."""
 
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfVolume.CUBIC_METERS
