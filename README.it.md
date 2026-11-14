@@ -3,9 +3,9 @@
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
 <p align="center">
-  <img src="docs/images/card-gas.png" alt="Card Gas / Gas card" width="330">
+  <img src="docs/images/card-gas-v2.png" alt="Card Gas / Gas card" width="330">
   &nbsp;&nbsp;
-  <img src="docs/images/card-water.png" alt="Card Acqua / Water card" width="330">
+  <img src="docs/images/card-water-v2.png" alt="Card Acqua / Water card" width="330">
 </p>
 
 ---
