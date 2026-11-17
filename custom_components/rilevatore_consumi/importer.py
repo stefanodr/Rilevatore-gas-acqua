@@ -199,15 +199,34 @@ def value_at(readings: list[tuple[datetime, int]], when: datetime) -> float:
 
 
 def hourly_rows(readings: list[tuple[datetime, int]]) -> list[dict]:
-    """Righe orarie (start, state, sum) con il consumo ripartito tra le letture."""
+    """Righe orarie (start, state, sum) con il consumo ripartito tra le letture.
+
+    Scorre le letture con un indice mobile (una sola passata): costo lineare
+    nel numero di ore, anche per molti anni di storico.
+    """
     first = dt_util.as_utc(readings[0][0]).replace(minute=0, second=0, microsecond=0)
     last = dt_util.as_utc(readings[-1][0]).replace(minute=0, second=0, microsecond=0)
     rows: list[dict] = []
     previous = float(readings[0][1])
     total = 0.0
     hour = first
+    index = 0  # segmento corrente: readings[index] <= istante < readings[index + 1]
+    end = len(readings) - 1
     while hour <= last:
-        state = value_at(readings, hour + timedelta(hours=1))
+        when = hour + timedelta(hours=1)
+        if when <= readings[0][0]:
+            state = float(readings[0][1])
+        elif when >= readings[-1][0]:
+            state = float(readings[-1][1])
+        else:
+            while index < end - 1 and readings[index + 1][0] <= when:
+                index += 1
+            t0, v0 = readings[index]
+            t1, v1 = readings[index + 1]
+            if v1 < v0:
+                state = float(v0)
+            else:
+                state = v0 + (v1 - v0) * (when - t0) / (t1 - t0)
         total += max(0.0, state - previous)
         rows.append({"start": hour, "state": round(state, 3), "sum": round(total, 3)})
         previous = state

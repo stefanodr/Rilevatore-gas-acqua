@@ -29,8 +29,12 @@ async def test_takes_free_entity_id(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.gas_meter_reading") is None
 
 
-async def test_replaces_orphaned_entity(hass: HomeAssistant) -> None:
-    """Il vecchio sensore orfano (entità non più fornita) viene sostituito."""
+async def test_orphaned_entity_is_never_removed(hass: HomeAssistant) -> None:
+    """Una voce di un'altra integrazione non si cancella mai, nemmeno se senza stato.
+
+    All'avvio le entità di integrazioni che si caricano dopo non hanno ancora
+    uno stato: toglierle farebbe perdere nome, area e impostazioni all'utente.
+    """
     registry = er.async_get(hass)
     registry.async_get_or_create(
         "sensor",
@@ -38,18 +42,20 @@ async def test_replaces_orphaned_entity(hass: HomeAssistant) -> None:
         "gas_consumption_sensor_template",
         suggested_object_id="gas_consumption",
     )
-    hass.states.async_set(OLD, "unavailable", {"restored": True})
 
-    await _setup(hass)
-
-    new = registry.async_get(OLD)
-    assert new.platform == DOMAIN
-    assert hass.states.get(OLD).state == "5726"
-    assert not hass.states.get(OLD).attributes.get("restored")
-    # il vecchio unique_id non esiste più
-    assert registry.async_get_entity_id(
-        "sensor", "template", "gas_consumption_sensor_template"
-    ) is None
+    for restored in (False, True):
+        if restored:
+            hass.states.async_set(OLD, "unavailable", {"restored": True})
+        entry = await _setup(hass)
+        assert registry.async_get(OLD).platform == "template"
+        assert registry.async_get_entity_id(
+            "sensor", "template", "gas_consumption_sensor_template"
+        ) == OLD
+        assert ir.async_get(hass).async_get_issue(
+            DOMAIN, f"entity_id_busy_{entry.entry_id}"
+        ) is not None
+        await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
 
 
 async def test_busy_entity_is_not_touched(hass: HomeAssistant) -> None:

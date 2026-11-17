@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "rilevatore_consumi"
-VERSION = "2.4.0"
+VERSION = "2.4.1"
 
 CONF_TYPE = "meter_type"
 CONF_ADOPTED = "adopted_entity"  # entity_id già preso: la rinomina avviene una volta sola

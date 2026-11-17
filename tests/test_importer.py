@@ -108,3 +108,25 @@ def test_value_at_and_hourly_rows() -> None:
     assert rows[-1]["start"] == t0 + timedelta(hours=30)
     assert rows[-1]["state"] == 10.0
     assert rows[-1]["sum"] == 24.0  # il calo non si somma
+
+
+def test_hourly_rows_matches_value_at() -> None:
+    """La scansione a indice mobile dà gli stessi valori del calcolo puntuale."""
+    from datetime import datetime, timedelta, timezone
+
+    from custom_components.rilevatore_consumi.importer import hourly_rows, value_at
+
+    t0 = datetime(2024, 1, 1, 7, 30, tzinfo=timezone.utc)
+    readings = [(t0, 100), (t0 + timedelta(days=3, hours=2), 112),
+                (t0 + timedelta(days=9), 110), (t0 + timedelta(days=9, hours=5), 130),
+                (t0 + timedelta(days=40), 190)]
+    rows = hourly_rows(readings)
+    assert len(rows) > 900
+    total = 0.0
+    previous = float(readings[0][1])
+    for row in rows:
+        state = value_at(readings, row["start"] + timedelta(hours=1))
+        total += max(0.0, state - previous)
+        previous = state
+        assert row["state"] == round(state, 3)
+        assert row["sum"] == round(total, 3)

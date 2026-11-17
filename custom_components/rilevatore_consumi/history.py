@@ -134,6 +134,17 @@ def rebuild_sums(rows: list[dict[str, Any]]) -> list[StatisticData]:
     return result
 
 
+def _rebuild_checked(
+    rows: list[dict[str, Any]],
+) -> tuple[list[StatisticData], int]:
+    """rebuild_sums e conteggio delle righe cambiate (da eseguire in executor)."""
+    fixed = rebuild_sums(rows)
+    changed = sum(
+        1 for old, new in zip(rows, fixed) if abs(float(old["sum"]) - new["sum"]) > 0.01
+    )
+    return fixed, changed
+
+
 async def async_repair_sums(
     hass: HomeAssistant, target_id: str, name: str | None = None
 ) -> dict[str, Any]:
@@ -147,10 +158,7 @@ async def async_repair_sums(
             translation_key="no_history",
             translation_placeholders={"source": target_id},
         )
-    fixed = rebuild_sums(rows)
-    changed = sum(
-        1 for old, new in zip(rows, fixed) if abs(float(old["sum"]) - new["sum"]) > 0.01
-    )
+    fixed, changed = await hass.async_add_executor_job(_rebuild_checked, rows)
     anchored = with_anchor(fixed)
     added_anchor = len(anchored) - len(fixed)
     if changed or added_anchor:
@@ -303,7 +311,7 @@ async def async_write_history(
     instance = get_instance(hass)
     await instance.async_block_till_done()
     new_rows = await instance.async_add_executor_job(_fetch, hass, target_id)
-    merged = merge_rows(old_rows, new_rows)
+    merged = await hass.async_add_executor_job(merge_rows, old_rows, new_rows)
 
     metadata = _metadata(target_id, name)
     await _async_import_chunked(hass, metadata, with_anchor(merged), progress)

@@ -186,7 +186,9 @@ class ImportView(HomeAssistantView):
                         entry.data.get(CONF_EXISTING)) if e
         )
         try:
-            parsed = parse_readings(text, preferred)
+            parsed = await hass.async_add_executor_job(
+                parse_readings, text, preferred
+            )
         except ImportFileError as err:
             return self.json(
                 {"code": err.code, "message": err.code, **err.extra},
@@ -276,8 +278,9 @@ class ImportView(HomeAssistantView):
                 )
 
                 try:
+                    rows = await hass.async_add_executor_job(hourly_rows, readings)
                     statistics = await async_write_history(
-                        hass, total_id, hourly_rows(readings), entry.title, _progress
+                        hass, total_id, rows, entry.title, _progress
                     )
                 except HomeAssistantError as err:
                     if getattr(err, "translation_key", None) == "nothing_to_import":

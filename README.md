@@ -1,4 +1,4 @@
-# Gas / water meter reader (v2.4.0)
+# Gas / water meter reader (v2.4.1)
 
 🇬🇧 English · 🇮🇹 [Italiano](README.it.md)
 

@@ -149,16 +149,10 @@ def _async_adopt_entity_id(hass: HomeAssistant, entry: RilevatoreConfigEntry) ->
         _done()
         return
 
-    occupant = registry.async_get(preferred)
-    if occupant is not None and occupant.platform != DOMAIN:
-        state = hass.states.get(preferred)
-        # Un'entità orfana (non più fornita da nessuno) si può sostituire
-        if state is None or state.attributes.get("restored"):
-            _LOGGER.info("Rimuovo l'entità orfana %s per riutilizzare il nome", preferred)
-            registry.async_remove(preferred)
-            occupant = None
-
-    if occupant is None and hass.states.get(preferred) is None:
+    # Si rinomina solo se il nome è libero nel registro. Le voci di altre
+    # integrazioni non si toccano mai (nemmeno se sembrano orfane): se il nome è
+    # occupato resta la segnalazione e sarà l'utente a eliminare il vecchio sensore.
+    if registry.async_get(preferred) is None and hass.states.get(preferred) is None:
         registry.async_update_entity(current, new_entity_id=preferred)
         _done()
         return
